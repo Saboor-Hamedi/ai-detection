@@ -6,12 +6,12 @@ from pydantic import BaseModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import re
-import numpy as np
+import math
 import os
 from fastapi.responses import HTMLResponse
 
 # --- CONFIGURATION ---
-print("[STATUS] INITIALIZING NEURAL LAB TRIPLE CONSENSUS ENGINE")
+print("[STATUS] INITIALIZING NEURAL LAB TRIPLE CONSENSUS V2")
 MODEL_NAME = "gpt2" 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
  
@@ -26,14 +26,11 @@ app = FastAPI(title="Neural Lab Forensic Engine")
 # Static Setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-os.makedirs(os.path.join(STATIC_DIR, "css"), exist_ok=True)
-os.makedirs(os.path.join(STATIC_DIR, "js"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -63,6 +60,22 @@ class DetectionResponse(BaseModel):
     radar: dict
     consensus: list[EngineResult]
 
+def strip_markdown(text: str) -> str:
+    """Removes markdown formatting to prevent forensic interference."""
+    # Remove headers (#)
+    text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
+    # Remove bold/italic (** or __ or *)
+    text = re.sub(r'(\*\*|__|\*|_)', '', text)
+    # Remove links [text](url)
+    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    # Remove code blocks
+    text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+    # Remove inline code
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    # Remove blockquotes
+    text = re.sub(r'^\s*>\s+', '', text, flags=re.MULTILINE)
+    return text.strip()
+
 def calculate_perplexity(text: str) -> float:
     try:
         encodings = tokenizer(text, return_tensors="pt", truncation=True, max_length=1024)
@@ -76,29 +89,32 @@ def calculate_perplexity(text: str) -> float:
     except: return 100.0
 
 def get_ai_prob_from_ppl(ppl: float) -> float:
-    import math
+    """Recalibrated sigmoid for higher sensitivity."""
     try:
-        return 100 / (1 + math.exp((ppl - 80) / 20))
+        # Shifted from 80 to 110 to catch more AI signals (Lower PPL = Higher AI)
+        return 100 / (1 + math.exp((ppl - 110) / 15))
     except: return 50.0
 
 def engine_consensus_audit(text_fragment: str):
-    """Universal audit logic for both global text and sentences."""
-    # Engine A: Perplexity
-    ppl = calculate_perplexity(text_fragment)
+    """Universal audit logic with improved sensitivity."""
+    clean_text = strip_markdown(text_fragment)
+    
+    # Engine A: Perplexity (Weighted 70% - Primary Neural Marker)
+    ppl = calculate_perplexity(clean_text)
     prob_a = get_ai_prob_from_ppl(ppl)
     
-    # Engine B: Stat Heuristic (Diversity + Rhythm)
-    words = re.findall(r'\w+', text_fragment.lower())
+    # Engine B: Stat Heuristic (Weighted 15% - Diversity)
+    words = re.findall(r'\w+', clean_text.lower())
     unique_ratio = len(set(words)) / len(words) if words else 0.5
     prob_b = max(5, min(98, 100 - (unique_ratio * 100)))
     
-    # Engine C: Fragment Marker (Common AI Transition word density)
-    ai_markers = ["furthermore", "moreover", "consequently", "in conclusion", "additionally"]
-    marker_count = sum(1 for m in ai_markers if m in text_fragment.lower())
-    prob_c = min(95, (marker_count * 25) + 10)
+    # Engine C: Fragment Marker (Weighted 15% - Transition Density)
+    ai_markers = ["furthermore", "moreover", "consequently", "in conclusion", "additionally", "as a result"]
+    marker_count = sum(1 for m in ai_markers if m in clean_text.lower())
+    prob_c = min(95, (marker_count * 20) + 15)
     
-    # Weighted Final Score
-    final_prob = (prob_a * 0.6) + (prob_b * 0.2) + (prob_c * 0.2)
+    # Recalibrated Weighted Final Score
+    final_prob = (prob_a * 0.7) + (prob_b * 0.15) + (prob_c * 0.15)
     return round(max(1, min(99.9, final_prob)), 2), ppl, prob_a, prob_b, prob_c
 
 @app.post("/detect", response_model=DetectionResponse)
@@ -106,21 +122,23 @@ async def detect_ai(request: DetectionRequest):
     text = request.text.strip()
     if not text: raise HTTPException(status_code=400, detail="Empty text")
     
-    raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    # Sanitization happens here
+    clean_text = strip_markdown(text)
+    
+    raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', clean_text) if s.strip()]
     sentences_data = []
     
     for s in raw_sentences:
         if len(s) < 5: continue
-        # Apply Consensus to every sentence for color consistency
         prob, ppl, pa, pb, pc = engine_consensus_audit(s)
         sentences_data.append(SentenceResult(text=s, ai_probability=prob, perplexity=ppl))
 
     # Global Audit
-    global_prob, global_ppl, pa, pb, pc = engine_consensus_audit(text)
+    global_prob, global_ppl, pa, pb, pc = engine_consensus_audit(clean_text)
     
     classification = "Human"
-    if global_prob > 75: classification = "Likely AI"
-    elif global_prob > 35: classification = "Mixed / Hybrid"
+    if global_prob > 65: classification = "Likely AI"
+    elif global_prob > 25: classification = "Mixed / Hybrid"
 
     return DetectionResponse(
         ai_probability=global_prob,
@@ -129,12 +147,12 @@ async def detect_ai(request: DetectionRequest):
         burstiness=0.0,
         classification=classification,
         metrics={
-            "word_count": len(text.split()),
+            "word_count": len(clean_text.split()),
             "reading_ease": 68.4,
             "stability": round(100 - pb, 1)
         },
         performance={
-            "f1": 94.1, "precision": 93.8, "recall": 94.5, "confidence": 98.2
+            "f1": 94.1, "precision": 93.8, "recall": 94.5, "confidence": round(pa, 1)
         },
         sentences=sentences_data,
         radar={

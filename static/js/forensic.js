@@ -74,9 +74,9 @@ const ForensicEngine = {
         let html = "";
         sentences.forEach(s => {
             let cls = "highlight-human";
-            // Triple-Consensus Thresholding
-            if (s.ai_probability > 75) cls = "highlight-ai-high";
-            else if (s.ai_probability > 35) cls = "highlight-ai-med";
+            // Recalibrated for higher sensitivity
+            if (s.ai_probability > 60) cls = "highlight-ai-high";
+            else if (s.ai_probability > 25) cls = "highlight-ai-med";
             html += `<span class="${cls}" title="Neural Signal: ${s.ai_probability}%">${s.text}</span> `;
         });
         highlighter.innerHTML = html;

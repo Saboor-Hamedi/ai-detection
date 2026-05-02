@@ -54,9 +54,9 @@
             #sidebar.mobile-open { width: 14rem !important; }
             #main-wrapper.mobile-sidebar-open { width: calc(100vw - 14rem); margin-left: 14rem; }
             
-            .results-pane { height: 160px !important; width: 100% !important; max-width: none !important; }
+            /* INCREASED TO 300PX AS REQUESTED */
+            .results-pane { height: 300px !important; width: 100% !important; max-width: none !important; }
             
-            /* Hide ugly scrollbar but keep swipe */
             .no-scrollbar::-webkit-scrollbar { display: none; }
             .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         }
@@ -128,13 +128,38 @@
             if (isMobile) {
                 const isOpen = sidebar.classList.toggle('mobile-open');
                 mainWrapper.classList.toggle('mobile-sidebar-open', isOpen);
+                // In mobile, we keep it visually collapsed unless mobile-open is active
                 sidebar.classList.toggle('collapsed-sidebar', !isOpen);
             } else {
                 const isCollapsed = sidebar.classList.toggle('collapsed-sidebar');
                 mainWrapper.classList.toggle('sidebar-collapsed-main', isCollapsed);
             }
         }
+
+        // SMART RESIZE HANDLER
+        function handleResize() {
+            const sidebar = document.getElementById('sidebar');
+            const mainWrapper = document.getElementById('main-wrapper');
+            const isMobile = window.innerWidth < 1024;
+
+            if (isMobile) {
+                // Force mobile state
+                mainWrapper.classList.remove('sidebar-collapsed-main');
+                sidebar.classList.add('collapsed-sidebar');
+                sidebar.classList.remove('mobile-open');
+                mainWrapper.classList.remove('mobile-sidebar-open');
+            } else {
+                // Force desktop state (Expanded by default)
+                sidebar.classList.remove('mobile-open');
+                sidebar.classList.remove('collapsed-sidebar');
+                mainWrapper.classList.remove('sidebar-collapsed-main');
+                mainWrapper.classList.remove('mobile-sidebar-open');
+            }
+        }
         
+        window.addEventListener('resize', handleResize);
+        
+        // Initial setup
         if (window.innerWidth < 1024) {
             document.getElementById('sidebar').classList.add('collapsed-sidebar');
         }
