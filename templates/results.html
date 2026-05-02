@@ -25,7 +25,34 @@
         </div>
     </div>
 
-    <!-- Model Performance Suite -->
+    <!-- Forensic DNA Radar -->
+    <div class="card rounded-xl p-5 bg-white border border-slate-200 shadow-sm">
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Forensic DNA Radar</p>
+        <div class="relative w-full aspect-square flex items-center justify-center">
+            <!-- Custom SVG Radar Chart -->
+            <svg id="forensic-radar" viewBox="0 0 100 100" class="w-full h-full p-2">
+                <!-- Background Circles -->
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="0.5"/>
+                <circle cx="50" cy="50" r="30" fill="none" stroke="#f1f5f9" stroke-width="0.5"/>
+                <circle cx="50" cy="50" r="20" fill="none" stroke="#f1f5f9" stroke-width="0.5"/>
+                <circle cx="50" cy="50" r="10" fill="none" stroke="#f1f5f9" stroke-width="0.5"/>
+                <!-- Axes -->
+                <line x1="50" y1="10" x2="50" y2="90" stroke="#f1f5f9" stroke-width="0.5"/>
+                <line x1="10" y1="50" x2="90" y2="50" stroke="#f1f5f9" stroke-width="0.5"/>
+                <!-- Radar Polygon (Dynamic) -->
+                <polygon id="radar-poly" points="50,50 50,50 50,50 50,50 50,50" 
+                    fill="rgba(30, 41, 59, 0.1)" stroke="#1e293b" stroke-width="1.5"
+                    class="transition-all duration-1000"/>
+            </svg>
+            <!-- Labels (Absolute positioned for clarity) -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 text-[7px] font-black uppercase text-slate-400">Diversity</div>
+            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 text-[7px] font-black uppercase text-slate-400">Complexity</div>
+            <div class="absolute right-0 top-1/2 -translate-y-1/2 text-[7px] font-black uppercase text-slate-400 text-right">Stability</div>
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 text-[7px] font-black uppercase text-slate-400">Burst</div>
+        </div>
+    </div>
+
+    <!-- Audit Performance -->
     <div class="card rounded-xl p-5 bg-white border border-slate-200 shadow-sm">
         <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4">Audit Performance</p>
         <div class="space-y-4">
