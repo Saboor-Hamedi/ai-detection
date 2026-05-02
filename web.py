@@ -12,12 +12,15 @@ import fitz  # PyMuPDF
 from fastapi.responses import HTMLResponse
 
 # --- CONFIGURATION ---
-print("[STATUS] INITIALIZING NEURAL LAB TRIPLE CONSENSUS V2")
+print("[STATUS] INITIALIZING NEURAL LAB TRIPLE CONSENSUS V2 - SPEED OPTIMIZED")
 MODEL_NAME = "gpt2" 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
  
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+# Use Half-Precision for 2x Speedup on supported hardware
+if DEVICE == "cuda":
+    model = model.half()
 model.to(DEVICE)
 model.eval()
 print(f"[STATUS] ENGINE READY ON {DEVICE}")
@@ -58,7 +61,8 @@ class DetectionResponse(BaseModel):
 
 def calculate_perplexity(text: str) -> float:
     try:
-        encodings = tokenizer(text, return_tensors="pt", truncation=True, max_length=1024)
+        # Optimization: Only audit the first 512 tokens of a fragment for speed
+        encodings = tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
         input_ids = encodings.input_ids.to(DEVICE)
         if input_ids.size(1) < 2: return 100.0
         target_ids = input_ids.clone()
@@ -73,17 +77,35 @@ def get_ai_prob_from_ppl(ppl: float) -> float:
         return 100 / (1 + math.exp((ppl - 110) / 15))
     except: return 50.0
 
-def engine_consensus_audit(text_fragment: str):
-    # No markdown stripping here to keep PDF layout perfect
-    ppl = calculate_perplexity(text_fragment)
-    prob_a = get_ai_prob_from_ppl(ppl)
-    words = re.findall(r'\w+', text_fragment.lower())
+def engine_consensus_audit(text_fragment: str, skip_neural=False):
+    """Universal audit logic. skip_neural=True for ultra-fast heuristic only."""
+    clean_text = text_fragment.strip()
+    if not clean_text: return 0, 100, 0, 0, 0
+    
+    # Engine A: Perplexity (The slow part)
+    if not skip_neural and len(clean_text) > 20:
+        ppl = calculate_perplexity(clean_text)
+        prob_a = get_ai_prob_from_ppl(ppl)
+    else:
+        ppl = 100.0
+        prob_a = 0.0
+    
+    # Engine B: Stat Heuristic (Diversity)
+    words = re.findall(r'\w+', clean_text.lower())
     unique_ratio = len(set(words)) / len(words) if words else 0.5
     prob_b = max(5, min(98, 100 - (unique_ratio * 100)))
-    ai_markers = ["furthermore", "moreover", "consequently", "in conclusion", "additionally", "as a result"]
-    marker_count = sum(1 for m in ai_markers if m in text_fragment.lower())
+    
+    # Engine C: Fragment Marker
+    ai_markers = ["furthermore", "moreover", "consequently", "in conclusion", "additionally"]
+    marker_count = sum(1 for m in ai_markers if m in clean_text.lower())
     prob_c = min(95, (marker_count * 20) + 15)
-    final_prob = (prob_a * 0.7) + (prob_b * 0.15) + (prob_c * 0.15)
+    
+    # Recalibrated Weighted Final Score
+    if skip_neural:
+        final_prob = (prob_b * 0.5) + (prob_c * 0.5)
+    else:
+        final_prob = (prob_a * 0.7) + (prob_b * 0.15) + (prob_c * 0.15)
+        
     return round(max(1, min(99.9, final_prob)), 2), ppl, prob_a, prob_b, prob_c
 
 @app.post("/upload")
@@ -95,7 +117,6 @@ async def upload_pdf(file: UploadFile = File(...)):
         doc = fitz.open(stream=contents, filetype="pdf")
         full_text = ""
         for page in doc:
-            # "layout" preserves the original PDF positions and breaks
             full_text += page.get_text("text") + "\n"
         return {"text": full_text}
     except Exception as e:
@@ -106,31 +127,28 @@ async def detect_ai(request: DetectionRequest):
     text = request.text
     if not text: raise HTTPException(status_code=400, detail="Empty text")
     
-    # EXHAUSTIVE PARTITIONING: Split by lines OR sentences to ensure 100% coverage
-    # This keeps the layout and ensures every chunk is audited
-    raw_fragments = re.split(r'(\n+|[.!?]\s+)', text)
+    # NEURAL BATCHING: Split by double-newlines (paragraphs) instead of sentences
+    # This reduces model calls by 5-10x for long documents
+    raw_fragments = re.split(r'(\n\n+)', text)
     
     sentences_data = []
-    current_chunk = ""
+    is_long_doc = len(text) > 5000
     
     for frag in raw_fragments:
         if not frag: continue
-        # If it's a delimiter (newline or punctuation), just append it to the last chunk or keep it
-        if re.match(r'[\n\s.!?]+', frag):
-            if sentences_data:
-                sentences_data[-1].text += frag
-            else:
-                current_chunk += frag
+        if re.match(r'[\n\s]+', frag):
+            if sentences_data: sentences_data[-1].text += frag
+            else: sentences_data.append(SentenceResult(text=frag, ai_probability=0, perplexity=100))
             continue
             
-        prob, ppl, pa, pb, pc = engine_consensus_audit(frag)
+        # Optimization: Only run Neural on fragments > 50 chars for long docs
+        skip_n = is_long_doc and len(frag) < 50
+        prob, ppl, pa, pb, pc = engine_consensus_audit(frag, skip_neural=skip_n)
         sentences_data.append(SentenceResult(text=frag, ai_probability=prob, perplexity=ppl))
 
-    # Fallback for empty sentence list
-    if not sentences_data:
-        sentences_data.append(SentenceResult(text=text, ai_probability=0, perplexity=100))
-
-    global_prob, global_ppl, pa, pb, pc = engine_consensus_audit(text)
+    # Global Audit (Full context pass)
+    global_prob, global_ppl, pa, pb, pc = engine_consensus_audit(text[:4000]) # Audit first 4k for global signature
+    
     classification = "Human"
     if global_prob > 65: classification = "Likely AI"
     elif global_prob > 25: classification = "Mixed / Hybrid"

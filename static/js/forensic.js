@@ -4,10 +4,12 @@
 
 const ForensicEngine = {
     history: JSON.parse(localStorage.getItem('forensic_history') || '[]'),
+    abortController: null,
 
     init() {
         this.bindEvents();
         this.renderHistory();
+        this.checkPlaceholder();
     },
 
     bindEvents() {
@@ -21,11 +23,20 @@ const ForensicEngine = {
                 highlighter.innerText = e.target.value;
             }
             this.syncScroll();
+            this.checkPlaceholder();
         });
 
         textarea.addEventListener('scroll', () => {
             this.syncScroll();
         });
+
+        // File Input Handler
+        const fileInput = document.getElementById('file-input');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) this.uploadFile(e.target.files[0]);
+            });
+        }
 
         // DRAG AND DROP PDF SUPPORT
         const wrapper = document.querySelector('.editor-wrapper');
@@ -56,13 +67,19 @@ const ForensicEngine = {
         }
     },
 
+    checkPlaceholder() {
+        const text = document.getElementById('input-text').value;
+        const actions = document.getElementById('placeholder-actions');
+        if (actions) {
+            actions.classList.toggle('hidden', text.length > 0);
+        }
+    },
+
     async uploadFile(file) {
-        const loader = document.getElementById('loader');
-        const btnText = document.getElementById('btn-text');
+        const overlay = document.getElementById('loading-overlay');
         const textarea = document.getElementById('input-text');
         
-        if (loader) loader.classList.remove('hidden');
-        if (btnText) btnText.innerText = 'Extracting...';
+        if (overlay) overlay.classList.remove('hidden');
 
         const formData = new FormData();
         formData.append('file', file);
@@ -75,16 +92,13 @@ const ForensicEngine = {
 
             if (res.text) {
                 textarea.value = res.text;
-                // Trigger counts and sync
                 textarea.dispatchEvent(new Event('input'));
-                alert("PDF Ingestion Complete. Ready for Scan.");
             }
         } catch (err) {
             console.error(err);
             alert("Error extracting PDF text.");
         } finally {
-            if (loader) loader.classList.add('hidden');
-            if (btnText) btnText.innerText = 'Scan';
+            if (overlay) overlay.classList.add('hidden');
         }
     },
 
@@ -105,16 +119,21 @@ const ForensicEngine = {
         }
 
         const btn = document.getElementById('analyze-btn');
-        const loader = document.getElementById('loader');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const overlay = document.getElementById('loading-overlay');
 
         btn.disabled = true;
-        if (loader) loader.classList.remove('hidden');
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+        if (overlay) overlay.classList.remove('hidden');
+
+        this.abortController = new AbortController();
 
         try {
             const res = await fetch('/detect', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text })
+                body: JSON.stringify({ text }),
+                signal: this.abortController.signal
             }).then(r => r.json());
 
             this.updateUI(res);
@@ -122,11 +141,23 @@ const ForensicEngine = {
             this.saveToHistory(text, res);
 
         } catch (err) {
-            console.error(err);
-            alert("Forensic Engine offline.");
+            if (err.name === 'AbortError') {
+                console.log("Analysis cancelled by user.");
+            } else {
+                console.error(err);
+                alert("Forensic Engine offline.");
+            }
         } finally {
             btn.disabled = false;
-            if (loader) loader.classList.add('hidden');
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+            if (overlay) overlay.classList.add('hidden');
+            this.abortController = null;
+        }
+    },
+
+    cancelAnalysis() {
+        if (this.abortController) {
+            this.abortController.abort();
         }
     },
 
@@ -135,10 +166,8 @@ const ForensicEngine = {
         let html = "";
         sentences.forEach(s => {
             let cls = "highlight-human";
-            // Recalibrated for higher sensitivity
             if (s.ai_probability > 60) cls = "highlight-ai-high";
             else if (s.ai_probability > 25) cls = "highlight-ai-med";
-            // NO trailing space here to preserve exact layout
             html += `<span class="${cls}" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
         });
         highlighter.innerHTML = html;
@@ -278,6 +307,7 @@ const ForensicEngine = {
 };
 
 window.runAnalysis = () => ForensicEngine.runAnalysis();
+window.cancelAnalysis = () => ForensicEngine.cancelAnalysis();
 window.switchView = (v) => ForensicEngine.switchView(v);
 window.clearHistory = () => ForensicEngine.clearHistory();
 window.ForensicEngine = ForensicEngine;
