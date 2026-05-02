@@ -10,30 +10,55 @@
     <style>
         .hidden { display: none !important; }
         
-        /* THE FAIL-SAFE HEIGHT SYSTEM */
-        html, body { height: 100vh; overflow: hidden; margin: 0; }
+        /* THE SEAMLESS LAYOUT SYSTEM */
+        html, body { height: 100vh; width: 100vw; overflow: hidden; margin: 0; }
         
         #main-wrapper { 
             height: 100vh; 
+            width: calc(100vw - 14rem);
+            margin-left: 14rem;
             display: flex; 
             flex-direction: column; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #main-wrapper.sidebar-collapsed-main {
+            width: calc(100vw - 55px);
+            margin-left: 55px;
         }
 
         .workspace-root { 
-            height: calc(100vh - 48px); /* Full height minus header */
+            flex: 1;
             display: flex;
             overflow: hidden;
+            width: 100%;
+            background-color: #ffffff;
         }
 
         .editor-layers {
             font-family: 'Inter', sans-serif;
             font-size: 16px;
             line-height: 1.6;
-            padding: 2.5rem;
+            padding: 1.5rem;
         }
 
         @media (min-width: 1024px) {
             .editor-layers { padding: 3.5rem; }
+        }
+        
+        #sidebar { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 50; }
+        
+        @media (max-width: 1023px) {
+            #main-wrapper { width: calc(100vw - 55px); margin-left: 55px; }
+            #sidebar { width: 55px !important; }
+            #sidebar.mobile-open { width: 14rem !important; }
+            #main-wrapper.mobile-sidebar-open { width: calc(100vw - 14rem); margin-left: 14rem; }
+            
+            .results-pane { height: 160px !important; width: 100% !important; max-width: none !important; }
+            
+            /* Hide ugly scrollbar but keep swipe */
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         }
     </style>
 </head>
@@ -41,15 +66,17 @@
     {{SIDEBAR}}
 
     <!-- Main Content Wrapper -->
-    <div id="main-wrapper" class="flex-1 ml-56 transition-all duration-300">
-        {{HEADER}}
+    <div id="main-wrapper" class="relative">
+        <!-- Full-Width Header -->
+        <div class="flex-shrink-0 w-full">
+            {{HEADER}}
+        </div>
 
         <!-- Parallel Workspace -->
-        <div class="workspace-root flex-col lg:flex-row">
+        <div class="workspace-root flex-col-reverse lg:flex-row">
             
             <!-- Left Pane: Editor -->
             <div class="flex-[3] flex flex-col border-r border-slate-100 bg-white h-full overflow-hidden">
-                <!-- Editor View -->
                 <main id="view-editor" class="flex-1 flex flex-col h-full overflow-hidden">
                     <div class="flex-1 relative editor-wrapper editor-layers">
                         <div id="highlighter-layer"></div>
@@ -85,7 +112,7 @@
             </div>
 
             <!-- Right Pane: Results -->
-            <div class="flex-[1] min-w-[320px] lg:max-w-[380px] h-full overflow-y-auto bg-slate-50">
+            <div class="results-pane flex-[1] min-w-[320px] lg:max-w-[380px] h-full overflow-y-auto lg:overflow-y-auto bg-slate-50 border-l lg:border-l border-slate-100 no-scrollbar">
                 {{RESULTS}}
             </div>
         </div>
@@ -96,8 +123,20 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const mainWrapper = document.getElementById('main-wrapper');
-            const isCollapsed = sidebar.classList.toggle('collapsed-sidebar');
-            mainWrapper.style.marginLeft = isCollapsed ? '55px' : '14rem';
+            const isMobile = window.innerWidth < 1024;
+            
+            if (isMobile) {
+                const isOpen = sidebar.classList.toggle('mobile-open');
+                mainWrapper.classList.toggle('mobile-sidebar-open', isOpen);
+                sidebar.classList.toggle('collapsed-sidebar', !isOpen);
+            } else {
+                const isCollapsed = sidebar.classList.toggle('collapsed-sidebar');
+                mainWrapper.classList.toggle('sidebar-collapsed-main', isCollapsed);
+            }
+        }
+        
+        if (window.innerWidth < 1024) {
+            document.getElementById('sidebar').classList.add('collapsed-sidebar');
         }
     </script>
 </body>
