@@ -13,6 +13,7 @@ const ForensicEngine = {
     bindEvents() {
         const textarea = document.getElementById('input-text');
         const highlighter = document.getElementById('highlighter-layer');
+        if (!textarea || !highlighter) return;
 
         textarea.addEventListener('input', (e) => {
             document.getElementById('char-count').innerText = `${e.target.value.length} Characters`;
@@ -25,6 +26,66 @@ const ForensicEngine = {
         textarea.addEventListener('scroll', () => {
             this.syncScroll();
         });
+
+        // DRAG AND DROP PDF SUPPORT
+        const wrapper = document.querySelector('.editor-wrapper');
+        if (wrapper) {
+            wrapper.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                wrapper.style.borderColor = '#10b981';
+                wrapper.style.background = '#f0fdf4';
+            });
+
+            wrapper.addEventListener('dragleave', () => {
+                wrapper.style.borderColor = 'transparent';
+                wrapper.style.background = '#ffffff';
+            });
+
+            wrapper.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                wrapper.style.borderColor = 'transparent';
+                wrapper.style.background = '#ffffff';
+                
+                const file = e.dataTransfer.files[0];
+                if (file && file.type === 'application/pdf') {
+                    this.uploadFile(file);
+                } else {
+                    alert("Only PDF files are supported for forensic ingestion.");
+                }
+            });
+        }
+    },
+
+    async uploadFile(file) {
+        const loader = document.getElementById('loader');
+        const btnText = document.getElementById('btn-text');
+        const textarea = document.getElementById('input-text');
+        
+        if (loader) loader.classList.remove('hidden');
+        if (btnText) btnText.innerText = 'Extracting...';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            }).then(r => r.json());
+
+            if (res.text) {
+                textarea.value = res.text;
+                // Trigger counts and sync
+                textarea.dispatchEvent(new Event('input'));
+                alert("PDF Ingestion Complete. Ready for Scan.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error extracting PDF text.");
+        } finally {
+            if (loader) loader.classList.add('hidden');
+            if (btnText) btnText.innerText = 'Scan';
+        }
     },
 
     syncScroll() {
@@ -47,7 +108,7 @@ const ForensicEngine = {
         const loader = document.getElementById('loader');
 
         btn.disabled = true;
-        loader.classList.remove('hidden');
+        if (loader) loader.classList.remove('hidden');
 
         try {
             const res = await fetch('/detect', {
@@ -65,7 +126,7 @@ const ForensicEngine = {
             alert("Forensic Engine offline.");
         } finally {
             btn.disabled = false;
-            loader.classList.add('hidden');
+            if (loader) loader.classList.add('hidden');
         }
     },
 
@@ -77,13 +138,13 @@ const ForensicEngine = {
             // Recalibrated for higher sensitivity
             if (s.ai_probability > 60) cls = "highlight-ai-high";
             else if (s.ai_probability > 25) cls = "highlight-ai-med";
-            html += `<span class="${cls}" title="Neural Signal: ${s.ai_probability}%">${s.text}</span> `;
+            // NO trailing space here to preserve exact layout
+            html += `<span class="${cls}" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
         });
         highlighter.innerHTML = html;
     },
 
     updateUI(res) {
-        // Probabilities
         document.getElementById('ai-prob').innerText = res.ai_probability + '%';
         document.getElementById('human-prob').innerText = res.human_probability + '%';
         document.getElementById('ai-bar').style.width = res.ai_probability + '%';
@@ -92,7 +153,6 @@ const ForensicEngine = {
         this.updateRadarChart(res.radar);
         this.updateConsensus(res.consensus);
 
-        // Verification Matrix
         const f1 = document.getElementById('f1-val');
         const prec = document.getElementById('precision-val');
         const rec = document.getElementById('recall-val');
@@ -109,18 +169,18 @@ const ForensicEngine = {
         
         classification.innerText = res.classification;
         
-        if (res.ai_probability > 75) {
-            summaryCard.className = 'card rounded-2xl p-5 bg-red-50/50 border border-red-100 flex-shrink-0 w-[240px] lg:w-full flex flex-col justify-center';
-            classification.className = 'text-xs font-black text-red-700 uppercase italic';
-            verdictDesc.innerText = "Neural signature confirmed by Triple-Engine audit.";
-        } else if (res.ai_probability > 35) {
-            summaryCard.className = 'card rounded-2xl p-5 bg-amber-50/50 border border-amber-100 flex-shrink-0 w-[240px] lg:w-full flex flex-col justify-center';
-            classification.className = 'text-xs font-black text-amber-700 uppercase italic';
-            verdictDesc.innerText = "Mixed linguistic fragments detected. Audit contested.";
+        if (res.ai_probability > 65) {
+            summaryCard.className = 'card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-red-50/50 border border-red-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden';
+            classification.className = 'text-[10px] lg:text-sm font-black text-red-700 uppercase italic';
+            verdictDesc.innerText = "Neural signature confirmed.";
+        } else if (res.ai_probability > 25) {
+            summaryCard.className = 'card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-amber-50/50 border border-amber-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden';
+            classification.className = 'text-[10px] lg:text-sm font-black text-amber-700 uppercase italic';
+            verdictDesc.innerText = "Mixed linguistic signals.";
         } else {
-            summaryCard.className = 'card rounded-2xl p-5 bg-emerald-50/50 border border-emerald-100 flex-shrink-0 w-[240px] lg:w-full flex flex-col justify-center';
-            classification.className = 'text-xs font-black text-emerald-700 uppercase italic';
-            verdictDesc.innerText = "Organic complexity verified across all models.";
+            summaryCard.className = 'card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-emerald-50/50 border border-emerald-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden';
+            classification.className = 'text-[10px] lg:text-sm font-black text-emerald-700 uppercase italic';
+            verdictDesc.innerText = "Organic complexity verified.";
         }
     },
 
@@ -132,7 +192,7 @@ const ForensicEngine = {
             const el = document.getElementById(ids[i]);
             if (el) {
                 el.innerText = eng.verdict;
-                el.className = `px-2 py-0.5 rounded text-[8px] font-black uppercase ${eng.verdict === 'AI' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`;
+                el.className = `px-1.5 py-0.5 lg:px-2 rounded text-[7px] lg:text-[8px] font-black uppercase ${eng.verdict === 'AI' ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`;
             }
         });
 
@@ -140,11 +200,9 @@ const ForensicEngine = {
         const allHuman = engines.every(e => e.verdict === 'Human');
 
         if (allAi || allHuman) {
-            container.innerHTML = `<p class="text-[8px] font-black uppercase tracking-widest text-emerald-600">Absolute Consensus</p>`;
-            container.className = 'mt-2 p-2 bg-emerald-50 rounded-lg text-center border border-emerald-100';
+            container.innerHTML = `<p class="text-[7px] lg:text-[8px] font-black uppercase tracking-widest text-emerald-600">Consensus</p>`;
         } else {
-            container.innerHTML = `<p class="text-[8px] font-black uppercase tracking-widest text-amber-600">Model Contention</p>`;
-            container.className = 'mt-2 p-2 bg-amber-50 rounded-lg text-center border border-amber-100';
+            container.innerHTML = `<p class="text-[7px] lg:text-[8px] font-black uppercase tracking-widest text-amber-600">Contention</p>`;
         }
     },
 

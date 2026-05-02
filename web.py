@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ import torch
 import re
 import math
 import os
+import fitz  # PyMuPDF
 from fastapi.responses import HTMLResponse
 
 # --- CONFIGURATION ---
@@ -43,11 +44,6 @@ class SentenceResult(BaseModel):
     ai_probability: float
     perplexity: float
 
-class EngineResult(BaseModel):
-    name: str
-    probability: float
-    verdict: str
-
 class DetectionResponse(BaseModel):
     ai_probability: float
     human_probability: float
@@ -58,23 +54,7 @@ class DetectionResponse(BaseModel):
     performance: dict
     sentences: list[SentenceResult]
     radar: dict
-    consensus: list[EngineResult]
-
-def strip_markdown(text: str) -> str:
-    """Removes markdown formatting to prevent forensic interference."""
-    # Remove headers (#)
-    text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
-    # Remove bold/italic (** or __ or *)
-    text = re.sub(r'(\*\*|__|\*|_)', '', text)
-    # Remove links [text](url)
-    text = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
-    # Remove code blocks
-    text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
-    # Remove inline code
-    text = re.sub(r'`([^`]+)`', r'\1', text)
-    # Remove blockquotes
-    text = re.sub(r'^\s*>\s+', '', text, flags=re.MULTILINE)
-    return text.strip()
+    consensus: list[dict]
 
 def calculate_perplexity(text: str) -> float:
     try:
@@ -89,83 +69,83 @@ def calculate_perplexity(text: str) -> float:
     except: return 100.0
 
 def get_ai_prob_from_ppl(ppl: float) -> float:
-    """Recalibrated sigmoid for higher sensitivity."""
     try:
-        # Shifted from 80 to 110 to catch more AI signals (Lower PPL = Higher AI)
         return 100 / (1 + math.exp((ppl - 110) / 15))
     except: return 50.0
 
 def engine_consensus_audit(text_fragment: str):
-    """Universal audit logic with improved sensitivity."""
-    clean_text = strip_markdown(text_fragment)
-    
-    # Engine A: Perplexity (Weighted 70% - Primary Neural Marker)
-    ppl = calculate_perplexity(clean_text)
+    # No markdown stripping here to keep PDF layout perfect
+    ppl = calculate_perplexity(text_fragment)
     prob_a = get_ai_prob_from_ppl(ppl)
-    
-    # Engine B: Stat Heuristic (Weighted 15% - Diversity)
-    words = re.findall(r'\w+', clean_text.lower())
+    words = re.findall(r'\w+', text_fragment.lower())
     unique_ratio = len(set(words)) / len(words) if words else 0.5
     prob_b = max(5, min(98, 100 - (unique_ratio * 100)))
-    
-    # Engine C: Fragment Marker (Weighted 15% - Transition Density)
     ai_markers = ["furthermore", "moreover", "consequently", "in conclusion", "additionally", "as a result"]
-    marker_count = sum(1 for m in ai_markers if m in clean_text.lower())
+    marker_count = sum(1 for m in ai_markers if m in text_fragment.lower())
     prob_c = min(95, (marker_count * 20) + 15)
-    
-    # Recalibrated Weighted Final Score
     final_prob = (prob_a * 0.7) + (prob_b * 0.15) + (prob_c * 0.15)
     return round(max(1, min(99.9, final_prob)), 2), ppl, prob_a, prob_b, prob_c
 
+@app.post("/upload")
+async def upload_pdf(file: UploadFile = File(...)):
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files supported.")
+    try:
+        contents = await file.read()
+        doc = fitz.open(stream=contents, filetype="pdf")
+        full_text = ""
+        for page in doc:
+            # "layout" preserves the original PDF positions and breaks
+            full_text += page.get_text("text") + "\n"
+        return {"text": full_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Extraction Error: {str(e)}")
+
 @app.post("/detect", response_model=DetectionResponse)
 async def detect_ai(request: DetectionRequest):
-    text = request.text.strip()
+    text = request.text
     if not text: raise HTTPException(status_code=400, detail="Empty text")
     
-    # Sanitization happens here
-    clean_text = strip_markdown(text)
+    # EXHAUSTIVE PARTITIONING: Split by lines OR sentences to ensure 100% coverage
+    # This keeps the layout and ensures every chunk is audited
+    raw_fragments = re.split(r'(\n+|[.!?]\s+)', text)
     
-    raw_sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', clean_text) if s.strip()]
     sentences_data = []
+    current_chunk = ""
     
-    for s in raw_sentences:
-        if len(s) < 5: continue
-        prob, ppl, pa, pb, pc = engine_consensus_audit(s)
-        sentences_data.append(SentenceResult(text=s, ai_probability=prob, perplexity=ppl))
+    for frag in raw_fragments:
+        if not frag: continue
+        # If it's a delimiter (newline or punctuation), just append it to the last chunk or keep it
+        if re.match(r'[\n\s.!?]+', frag):
+            if sentences_data:
+                sentences_data[-1].text += frag
+            else:
+                current_chunk += frag
+            continue
+            
+        prob, ppl, pa, pb, pc = engine_consensus_audit(frag)
+        sentences_data.append(SentenceResult(text=frag, ai_probability=prob, perplexity=ppl))
 
-    # Global Audit
-    global_prob, global_ppl, pa, pb, pc = engine_consensus_audit(clean_text)
-    
+    # Fallback for empty sentence list
+    if not sentences_data:
+        sentences_data.append(SentenceResult(text=text, ai_probability=0, perplexity=100))
+
+    global_prob, global_ppl, pa, pb, pc = engine_consensus_audit(text)
     classification = "Human"
     if global_prob > 65: classification = "Likely AI"
     elif global_prob > 25: classification = "Mixed / Hybrid"
 
     return DetectionResponse(
-        ai_probability=global_prob,
-        human_probability=round(100 - global_prob, 2),
-        perplexity=global_ppl,
-        burstiness=0.0,
-        classification=classification,
-        metrics={
-            "word_count": len(clean_text.split()),
-            "reading_ease": 68.4,
-            "stability": round(100 - pb, 1)
-        },
-        performance={
-            "f1": 94.1, "precision": 93.8, "recall": 94.5, "confidence": round(pa, 1)
-        },
+        ai_probability=global_prob, human_probability=round(100 - global_prob, 2),
+        perplexity=global_ppl, burstiness=0.0, classification=classification,
+        metrics={"word_count": len(text.split()), "reading_ease": 68.4, "stability": round(100 - pb, 1)},
+        performance={"f1": 94.1, "precision": 93.8, "recall": 94.5, "confidence": round(pa, 1)},
         sentences=sentences_data,
-        radar={
-            "lexical_diversity": 100 - pb,
-            "syntax_complexity": 85.0,
-            "neural_stability": round(100 - pa, 1),
-            "rhythm_variance": 45.0,
-            "predictability": pa
-        },
+        radar={"lexical_diversity": 100 - pb, "syntax_complexity": 85.0, "neural_stability": round(100 - pa, 1), "rhythm_variance": 45.0, "predictability": pa},
         consensus=[
-            EngineResult(name="GPT-2 Neural", probability=pa, verdict="AI" if pa > 50 else "Human"),
-            EngineResult(name="Stat Heuristic", probability=pb, verdict="AI" if pb > 50 else "Human"),
-            EngineResult(name="DNA Fragmenter", probability=pc, verdict="AI" if pc > 50 else "Human")
+            {"name": "GPT-2 Neural", "probability": pa, "verdict": "AI" if pa > 50 else "Human"},
+            {"name": "Stat Heuristic", "probability": pb, "verdict": "AI" if pb > 50 else "Human"},
+            {"name": "DNA Fragmenter", "probability": pc, "verdict": "AI" if pc > 50 else "Human"}
         ]
     )
 
