@@ -1,0 +1,86 @@
+<div id="results-panel" class="w-full p-5 space-y-4">
+    <!-- Forensic Biometric Graph -->
+    <div class="card rounded-xl p-5 bg-white border border-slate-200 shadow-sm">
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4">Origin Signature</p>
+        
+        <div class="flex justify-between mb-1.5 px-0.5">
+            <span class="text-[9px] font-bold text-emerald-600 uppercase">Human</span>
+            <span class="text-[9px] font-bold text-red-500 uppercase">Neural</span>
+        </div>
+        
+        <div class="w-full h-5 flex rounded-lg overflow-hidden bg-slate-100 mb-4">
+            <div id="human-bar" class="h-full bg-emerald-500 transition-all duration-1000" style="width: 50%"></div>
+            <div id="ai-bar" class="h-full bg-red-500 transition-all duration-1000" style="width: 50%"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div class="text-center py-2 bg-slate-50 rounded-lg border border-slate-100">
+                <p id="human-prob" class="text-lg font-bold text-slate-800">--</p>
+                <p class="text-[8px] font-bold text-slate-400 uppercase">Human</p>
+            </div>
+            <div class="text-center py-2 bg-slate-50 rounded-lg border border-slate-100">
+                <p id="ai-prob" class="text-lg font-bold text-slate-800">--</p>
+                <p class="text-[8px] font-bold text-slate-400 uppercase">AI Neural</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Performance Suite -->
+    <div class="card rounded-xl p-5 bg-white border border-slate-200 shadow-sm">
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4">Audit Performance</p>
+        <div class="space-y-4">
+            <div class="space-y-1.5">
+                <div class="flex justify-between text-[10px] font-bold">
+                    <span class="text-slate-600 uppercase">F1-Score</span>
+                    <span id="f1-val" class="text-slate-900">--</span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div id="f1-bar" class="h-full bg-indigo-500 transition-all duration-1000" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-[8px] font-bold text-slate-400 uppercase">Precision</p>
+                    <p id="precision-val" class="text-sm font-black text-slate-700">--</p>
+                </div>
+                <div>
+                    <p class="text-[8px] font-bold text-slate-400 uppercase">Recall</p>
+                    <p id="recall-val" class="text-sm font-black text-slate-700">--</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linguistic Score Matrix -->
+    <div class="card rounded-xl p-5 bg-white border border-slate-200 shadow-sm">
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-4">Forensic Metrics</p>
+        
+        <div class="grid grid-cols-2 gap-y-4 gap-x-3">
+            <div class="space-y-0.5">
+                <p class="text-[10px] font-bold text-slate-600">Perplexity</p>
+                <p id="ppl-val" class="text-sm font-bold text-slate-900">--</p>
+            </div>
+            <div class="space-y-0.5">
+                <p class="text-[10px] font-bold text-slate-600">Stability</p>
+                <p id="stability" class="text-sm font-bold text-slate-900">--</p>
+            </div>
+            <div class="space-y-0.5">
+                <p class="text-[10px] font-bold text-slate-600">Reading Ease</p>
+                <p id="reading-ease" class="text-sm font-bold text-slate-900">--</p>
+            </div>
+            <div class="space-y-0.5">
+                <p class="text-[10px] font-bold text-slate-600">Word Count</p>
+                <p id="word-count" class="text-sm font-bold text-slate-900">--</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verdict -->
+    <div id="summary-card" class="card rounded-xl p-5 bg-white border border-slate-200">
+        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Verdict</p>
+        <h3 id="classification" class="text-sm font-black text-slate-900 uppercase italic">Awaiting...</h3>
+        <p id="verdict-desc" class="text-[10px] text-slate-500 mt-1 leading-normal">
+            Neural weights ready. Paste text to begin scan.
+        </p>
+    </div>
+</div>

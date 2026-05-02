@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Lab | Forensic Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #ffffff; color: #1e293b; }
+        .btn-execute { 
+            background-color: #1e293b; 
+            color: white; 
+            transition: all 0.2s; 
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .btn-execute:hover { background-color: #000000; transform: translateY(-0.5px); }
+        .btn-execute:disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+        
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        
+        textarea::placeholder { color: #cbd5e1; font-weight: 300; }
+        .hidden { display: none !important; }
+        #main-wrapper { transition: margin-left 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex">
+    {{SIDEBAR}}
+
+    <!-- Main Content Wrapper -->
+    <div id="main-wrapper" class="flex-1 flex flex-col ml-56 h-full relative overflow-hidden">
+        {{HEADER}}
+
+        <!-- Parallel Workspace -->
+        <div class="flex-1 flex flex-col lg:flex-row h-full overflow-hidden">
+            
+            <!-- Left Pane: Editor (Dominant) -->
+            <div class="flex-[3] flex flex-col border-r border-slate-100 min-h-0 bg-white">
+                <!-- Editor View -->
+                <main id="view-editor" class="flex-1 flex flex-col h-full overflow-hidden">
+                    <textarea id="input-text" 
+                        class="flex-1 w-full p-10 lg:p-14 text-slate-700 bg-white focus:outline-none text-[16px] leading-relaxed resize-none overflow-y-auto"
+                        placeholder="Drop research draft here for neural forensic validation..."></textarea>
+                    
+                    <div class="h-12 border-t border-slate-50 flex items-center justify-between px-6 bg-white flex-shrink-0">
+                        <div class="flex items-center space-x-4">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Forensic Ready</span>
+                            <span id="char-count" class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">0 Characters</span>
+                        </div>
+                        
+                        <button onclick="runAnalysis()" id="analyze-btn" 
+                            class="px-6 py-2 btn-execute rounded flex items-center space-x-2 shadow-sm">
+                            <span id="btn-text">Scan</span>
+                            <div id="loader" class="hidden w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        </button>
+                    </div>
+                </main>
+
+                <!-- History View -->
+                <main id="view-history" class="flex-1 flex flex-col h-full overflow-hidden hidden bg-slate-50/30">
+                    <div class="p-10 lg:p-14 space-y-6 overflow-y-auto h-full">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">Forensic Archive</h2>
+                            <button onclick="clearHistory()" class="text-[9px] font-bold text-red-400 uppercase">Purge</button>
+                        </div>
+                        <div id="history-list" class="space-y-3"></div>
+                    </div>
+                </main>
+            </div>
+
+            <!-- Right Pane: Results (Supporting) -->
+            <div class="flex-[1] min-w-[320px] lg:max-w-[380px] h-full overflow-y-auto bg-slate-50">
+                {{RESULTS}}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sidebar Toggle Logic
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainWrapper = document.getElementById('main-wrapper');
+            const isCollapsed = sidebar.classList.toggle('collapsed-sidebar');
+            mainWrapper.style.marginLeft = isCollapsed ? '55px' : '14rem';
+        }
+
+        // Character counter
+        document.getElementById('input-text').addEventListener('input', (e) => {
+            document.getElementById('char-count').innerText = `${e.target.value.length} Characters`;
+        });
+
+        // View Switching
+        function switchView(view) {
+            const editor = document.getElementById('view-editor');
+            const history = document.getElementById('view-history');
+            const navEditor = document.getElementById('nav-editor');
+            const navHistory = document.getElementById('nav-history');
+
+            if (view === 'editor') {
+                editor.classList.remove('hidden');
+                history.classList.add('hidden');
+                navEditor.className = "group w-full flex items-center p-2 bg-slate-50 rounded-md text-slate-900 text-[10px] font-bold uppercase tracking-widest text-left";
+                navHistory.className = "group w-full flex items-center p-2 text-slate-400 hover:text-slate-900 rounded-md text-[10px] font-bold uppercase tracking-widest text-left";
+            } else {
+                editor.classList.add('hidden');
+                history.classList.remove('hidden');
+                navHistory.className = "group w-full flex items-center p-2 bg-slate-50 rounded-md text-slate-900 text-[10px] font-bold uppercase tracking-widest text-left";
+                navEditor.className = "group w-full flex items-center p-2 text-slate-400 hover:text-slate-900 rounded-md text-[10px] font-bold uppercase tracking-widest text-left";
+                renderHistory();
+            }
+        }
+
+        async function runAnalysis() {
+            const text = document.getElementById('input-text').value;
+            if (!text || text.length < 20) {
+                alert("Minimum 20 characters required.");
+                return;
+            }
+
+            const btn = document.getElementById('analyze-btn');
+            const btnText = document.getElementById('btn-text');
+            const loader = document.getElementById('loader');
+
+            btn.disabled = true;
+            btnText.innerText = "Scanning...";
+            loader.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/detect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                }).then(r => r.json());
+
+                updateUI(res);
+                saveToHistory(text, res);
+
+            } catch (err) {
+                console.error(err);
+                alert("Forensic Engine offline.");
+            } finally {
+                btn.disabled = false;
+                btnText.innerText = "Scan";
+                loader.classList.add('hidden');
+            }
+        }
+
+        function updateUI(res) {
+            document.getElementById('ai-prob').innerText = res.ai_probability + '%';
+            document.getElementById('human-prob').innerText = res.human_probability + '%';
+            document.getElementById('ai-bar').style.width = res.ai_probability + '%';
+            document.getElementById('human-bar').style.width = res.human_probability + '%';
+            
+            // Performance Metrics
+            document.getElementById('f1-val').innerText = res.performance.f1 + '%';
+            document.getElementById('f1-bar').style.width = res.performance.f1 + '%';
+            document.getElementById('precision-val').innerText = res.performance.precision + '%';
+            document.getElementById('recall-val').innerText = res.performance.recall + '%';
+
+            // Forensic Metrics
+            document.getElementById('ppl-val').innerText = res.perplexity;
+            document.getElementById('reading-ease').innerText = res.metrics.reading_ease;
+            document.getElementById('stability').innerText = res.metrics.stability + '%';
+            document.getElementById('word-count').innerText = res.metrics.word_count;
+
+            const classification = document.getElementById('classification');
+            const summaryCard = document.getElementById('summary-card');
+            const verdictDesc = document.getElementById('verdict-desc');
+            classification.innerText = res.classification;
+            
+            if (res.ai_probability > 80) {
+                summaryCard.className = 'card rounded-xl p-5 bg-red-50/50 border border-red-100 transition-colors duration-500';
+                classification.className = 'text-xs font-black text-red-700 uppercase italic';
+                verdictDesc.innerText = "Neural signatures detected. High probability of AI origin.";
+            } else if (res.ai_probability > 45) {
+                summaryCard.className = 'card rounded-xl p-5 bg-amber-50/50 border border-amber-100 transition-colors duration-500';
+                classification.className = 'text-xs font-black text-amber-700 uppercase italic';
+                verdictDesc.innerText = "Hybrid linguistic signals found. Potential AI-assisted draft.";
+            } else {
+                summaryCard.className = 'card rounded-xl p-5 bg-emerald-50/50 border border-emerald-100 transition-colors duration-500';
+                classification.className = 'text-xs font-black text-emerald-700 uppercase italic';
+                verdictDesc.innerText = "Organic complexity confirmed. High probability of human origin.";
+            }
+        }
+
+        function saveToHistory(text, res) {
+            const history = JSON.parse(localStorage.getItem('forensic_history') || '[]');
+            const newItem = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleTimeString(),
+                date: new Date().toLocaleDateString(),
+                snippet: text.substring(0, 100) + '...',
+                ai_probability: res.ai_probability,
+                classification: res.classification,
+                full_text: text,
+                full_res: res
+            };
+            history.unshift(newItem);
+            localStorage.setItem('forensic_history', JSON.stringify(history.slice(0, 50)));
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('forensic_history') || '[]');
+            const list = document.getElementById('history-list');
+            if (history.length === 0) {
+                list.innerHTML = '<p class="text-[10px] text-slate-400 italic text-center py-10">No records found.</p>';
+                return;
+            }
+            list.innerHTML = history.map(item => `
+                <div onclick="loadFromHistory(${item.id})" class="group flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:border-slate-300 transition-all cursor-pointer shadow-sm">
+                    <div class="flex-1 min-w-0 pr-4">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-[9px] font-black text-slate-400 uppercase">${item.date} ${item.timestamp}</span>
+                            <span class="text-[9px] font-bold ${item.ai_probability > 50 ? 'text-red-500' : 'text-emerald-500'} uppercase">${item.classification}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-600 truncate font-medium">${item.snippet}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-black text-slate-800 tabular-nums">${item.ai_probability}%</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadFromHistory(id) {
+            const history = JSON.parse(localStorage.getItem('forensic_history') || '[]');
+            const item = history.find(h => h.id === id);
+            if (item) {
+                document.getElementById('input-text').value = item.full_text;
+                updateUI(item.full_res);
+                switchView('editor');
+            }
+        }
+
+        function clearHistory() {
+            if (confirm("Purge records?")) {
+                localStorage.removeItem('forensic_history');
+                renderHistory();
+            }
+        }
+    </script>
+</body>
+</html>
