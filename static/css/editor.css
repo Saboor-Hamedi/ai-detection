@@ -5,31 +5,9 @@
     width: 100%;
     min-height: 0;
     overflow: hidden;
-    background: #ffffff;
 }
 
-#highlighter-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: auto; /* Allow it to grow with text */
-    min-height: 100%;
-    padding: inherit;
-    margin: 0;
-    color: transparent;
-    z-index: 10;
-    pointer-events: none;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 16px !important;
-    line-height: 1.6 !important;
-    white-space: pre-wrap !important;
-    word-wrap: break-word !important;
-    transform: translateY(0); /* We will sync this via JS */
-    will-change: transform;
-}
-
-#input-text {
+#highlighter-layer, #input-text {
     position: absolute;
     top: 0;
     left: 0;
@@ -38,20 +16,28 @@
     padding: inherit;
     margin: 0;
     border: none;
-    background: transparent !important;
-    color: #1e293b;
-    caret-color: #1e293b;
-    z-index: 20;
     font-family: 'Inter', sans-serif !important;
     font-size: 16px !important;
     line-height: 1.6 !important;
     white-space: pre-wrap !important;
     word-wrap: break-word !important;
-    overflow-y: auto;
-    resize: none;
 }
 
-#input-text:focus { outline: none; }
+#highlighter-layer {
+    color: transparent;
+    z-index: 10;
+    pointer-events: none;
+    overflow: hidden; /* NO INTERNAL SCROLL */
+    background: white; /* Ensure it's the base layer */
+}
+
+#input-text {
+    background: transparent !important;
+    color: #1e293b;
+    caret-color: #1e293b;
+    z-index: 20;
+    overflow-y: auto; /* ONLY TEXTAREA SCROLLS */
+}
 
 /* Forensic Highlight Colors */
 .highlight-ai-high { background-color: rgba(239, 68, 68, 0.25); border-radius: 2px; }
