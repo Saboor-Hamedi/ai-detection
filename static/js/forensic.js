@@ -33,8 +33,7 @@ const ForensicEngine = {
         if (!textarea || !highlighter) return;
 
         textarea.addEventListener('input', (e) => {
-            const charCount = document.getElementById('char-count');
-            if (charCount) charCount.innerText = `${e.target.value.length} Characters`;
+            this.updateTelemetry(e.target.value);
             
             if (!highlighter.innerHTML.includes('<span')) {
                 highlighter.innerText = e.target.value;
@@ -94,8 +93,7 @@ const ForensicEngine = {
         const highlighter = document.getElementById('highlighter-layer');
         if (textarea) {
             textarea.value = '';
-            const charCount = document.getElementById('char-count');
-            if (charCount) charCount.innerText = '0 Characters';
+            this.updateTelemetry('');
             this.checkPlaceholder();
         }
         if (highlighter) {
@@ -104,6 +102,16 @@ const ForensicEngine = {
         this.lastResult = null;
         const reportBtn = document.getElementById('report-btn');
         if (reportBtn) reportBtn.classList.add('hidden');
+    },
+
+    updateTelemetry(text) {
+        const charCount = document.getElementById('char-count');
+        const wordCount = document.getElementById('word-count');
+        if (charCount) charCount.innerText = `${text.length} Char`;
+        if (wordCount) {
+            const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+            wordCount.innerText = `${words} Word`;
+        }
     },
 
     checkPlaceholder() {
