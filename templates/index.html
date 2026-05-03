@@ -1,25 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neural Lab | Forensic Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Spectral:wght@400;500;700&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="/static/css/editor.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf_viewer.min.css">
     <style>
-        .hidden { display: none !important; }
-        
-        /* THE SEAMLESS LAYOUT SYSTEM */
-        html, body { height: 100vh; width: 100vw; overflow: hidden; margin: 0; }
-        
-        #main-wrapper { 
-            height: 100vh; 
+        .hidden {
+            display: none !important;
+        }
+
+        html,
+        body {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        #main-wrapper {
+            height: 100vh;
             width: calc(100vw - 14rem);
             margin-left: 14rem;
-            display: flex; 
-            flex-direction: column; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            transition: all 300ms ease-in-out;
+        }
+
+        /* RESPONSIVE OVERRIDE (Compact Mobile) */
+        @media (max-width: 1023px) {
+            #main-wrapper {
+                width: calc(100vw - 55px) !important;
+                margin-left: 55px !important;
+            }
+
+            #sidebar {
+                width: 55px !important;
+                transform: translateX(0) !important;
+            }
+
+            #sidebar .sidebar-label {
+                display: none !important;
+            }
+
+            #sidebar.mobile-open {
+                width: 14rem !important;
+                z-index: 1000;
+            }
+
+            #sidebar.mobile-open~#main-wrapper {
+                margin-left: 14rem !important;
+                width: calc(100vw - 14rem) !important;
+            }
         }
 
         #main-wrapper.sidebar-collapsed-main {
@@ -27,7 +66,35 @@
             margin-left: 55px;
         }
 
-        .workspace-root { 
+        .workspace-root {
+            .no-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+
+            .no-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+
+            /* PROFESSIONAL AUDIT SELECTION */
+            .select-layer-custom ::selection {
+                background: rgba(15, 23, 42, 0.15);
+                /* Soft Slate Selection */
+                color: inherit;
+            }
+
+            .textLayer {
+                opacity: 1;
+                mix-blend-mode: multiply;
+            }
+
+            .textLayer>span {
+                color: transparent;
+                cursor: text;
+                white-space: pre;
+                transform-origin: 0% 0%;
+            }
+
             flex: 1;
             display: flex;
             overflow: hidden;
@@ -35,169 +102,212 @@
             background-color: #ffffff;
         }
 
-        .editor-layers {
-            font-family: 'Inter', sans-serif;
-            font-size: 16px;
-            line-height: 1.6;
-            padding: 1.5rem;
+        /* TRUE FULL WIDTH EDITOR */
+        .editor-content-area {
+            font-family: 'Spectral', serif;
+            font-size: 19px;
+            line-height: 1.8;
+            color: #1e293b;
+            width: 100%;
+            height: 100%;
+            position: relative;
         }
 
-        @media (min-width: 1024px) {
-            .editor-layers { padding: 3.5rem; }
-        }
-        
-        #sidebar { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 50; }
-        
-        @media (max-width: 1023px) {
-            #main-wrapper { width: calc(100vw - 55px); margin-left: 55px; }
-            #sidebar { width: 55px !important; }
-            #sidebar.mobile-open { width: 14rem !important; }
-            #main-wrapper.mobile-sidebar-open { width: calc(100vw - 14rem); margin-left: 14rem; }
-            .results-pane { height: 300px !important; width: 100% !important; max-width: none !important; }
-            .no-scrollbar::-webkit-scrollbar { display: none; }
-            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        #input-text {
+            background: transparent;
+            width: 100%;
+            height: 100%;
+            border: none;
+            z-index: 20;
+            position: relative;
+            outline: none;
+            resize: none;
+            padding: 3rem 2% 8rem 2%;
+            /* Ultra-slim side padding for full width */
+            overflow-y: auto;
         }
 
-        /* CENTER LOADER OVERLAY */
-        #loading-overlay {
+        #highlighter-layer {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(4px);
+            z-index: 10;
+            pointer-events: none;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding: 3rem 2% 8rem 2%;
+            /* Match textarea exactly */
+            color: transparent;
+        }
+
+        /* BASE-ANCHORED ACTIONS */
+        #placeholder-actions {
+            position: absolute;
+            bottom: 1.5rem;
+            /* Dropped to the base */
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 100;
+            display: flex;
+            gap: 0.6rem;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.9rem;
+            background: white;
+            border: 1.5px solid #f1f5f9;
+            border-radius: 0.7rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            border-color: #cbd5e1;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        /* PDF VISUALIZER */
+        .textLayer {
+            opacity: 0.2;
+            mix-blend-mode: multiply;
+        }
+
+        .forensic-glow {
+            border-radius: 2px;
+            z-index: 5;
+        }
+
+        #loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 200;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
-
-        /* PLACEHOLDER ACTIONS */
-        #placeholder-actions {
-            position: absolute;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 30;
-            display: flex;
-            gap: 0.75rem;
-        }
     </style>
 </head>
+
 <body class="flex">
     {{SIDEBAR}}
 
-    <!-- Main Content Wrapper -->
     <div id="main-wrapper" class="relative">
         <div class="flex-shrink-0 w-full">
             {{HEADER}}
         </div>
 
-        <!-- Parallel Workspace -->
         <div class="workspace-root flex-col-reverse lg:flex-row">
-            
-            <!-- Left Pane: Editor -->
+
             <div class="flex-[3] flex flex-col border-r border-slate-100 bg-white h-full overflow-hidden">
-                <main id="view-editor" class="flex-1 flex flex-col h-full overflow-hidden">
-                    <div class="flex-1 relative editor-wrapper editor-layers">
-                        <div id="highlighter-layer"></div>
-                        <textarea id="input-text" 
-                            class="focus:outline-none resize-none overflow-y-auto"
-                            placeholder="Paste your text or drop a file to start neural audit..."></textarea>
-                        
-                        <!-- Neural Loading Overlay -->
-                        <div id="loading-overlay" class="hidden">
-                            <div class="w-12 h-12 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin mb-4"></div>
-                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Neural Consensus in Progress...</p>
-                        </div>
 
-                        <!-- Smart Placeholder Actions -->
-                        <div id="placeholder-actions">
-                            <input type="file" id="file-input" class="hidden" accept=".pdf">
-                            <button onclick="document.getElementById('file-input').click()" 
-                                class="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-slate-400 transition-all">
-                                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                <span class="text-[10px] font-bold text-slate-600 uppercase tracking-tight">Choose File</span>
-                            </button>
-                            <button onclick="alert('Google Drive integration ready in Production build.')" 
-                                class="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-slate-400 transition-all">
-                                <svg class="w-4 h-4 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M15.75 3L21 12l-5.25 9H5.25L0 12l5.25-9h10.5z"/></svg>
-                                <span class="text-[10px] font-bold text-slate-600 uppercase tracking-tight">Google Drive</span>
-                            </button>
+                <div class="flex-1 relative overflow-hidden">
+
+                    <main id="view-editor" class="absolute inset-0 flex flex-col">
+                        <div class="flex-1 relative editor-wrapper overflow-hidden">
+
+                            <div class="editor-content-area">
+                                <div id="highlighter-layer"></div>
+                                <textarea id="input-text" class="no-scrollbar"
+                                    placeholder="Paste research text here..."></textarea>
+
+                                <div id="placeholder-actions">
+                                    <input type="file" id="file-input" class="hidden" accept=".pdf">
+                                    <button onclick="document.getElementById('file-input').click()" class="action-btn">
+                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <span
+                                            class="text-[9px] font-black text-slate-700 uppercase tracking-tight">Upload
+                                            PDF</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="loading-overlay" class="hidden">
+                                <div
+                                    class="w-12 h-12 border-4 border-slate-100 border-t-slate-900 rounded-full animate-spin mb-6">
+                                </div>
+                                <p class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-900">Neural
+                                    Consensus in Progress</p>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="h-14 border-t border-slate-100 flex items-center justify-between px-6 bg-white flex-shrink-0">
-                        <div class="flex items-center space-x-4">
-                            <span id="char-count" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">0 Characters</span>
+                    </main>
+
+                    <main id="view-visual-pdf" class="absolute inset-0 flex flex-col bg-slate-50 hidden">
+                        <div id="pdf-container"
+                            class="flex-1 overflow-y-auto overflow-x-hidden p-12 lg:p-20 flex flex-col items-center space-y-8 scroll-smooth no-scrollbar">
                         </div>
-                        
+                    </main>
+
+                    <main id="view-history" class="absolute inset-0 flex flex-col bg-slate-50/50 hidden">
+                        <div class="p-10 lg:p-14 space-y-6 overflow-y-auto h-full no-scrollbar">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center space-x-3">
+                                    <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">Archive</h2>
+                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-black uppercase rounded-full tracking-widest">Database Persistence Active</span>
+                                </div>
+                                <button onclick="ForensicEngine.clearHistory()"
+                                    class="text-[9px] font-bold text-red-400 uppercase">Clear</button>
+                            </div>
+                            <div id="history-list" class="space-y-3"></div>
+                        </div>
+                    </main>
+                </div>
+
+                <!-- PERSISTENT FOOTER (Unified Telemetry) -->
+                <div
+                    class="h-14 border-t border-slate-100 flex items-center justify-between px-4 bg-white flex-shrink-0 z-50">
+                    <div class="flex items-center space-x-8">
                         <div class="flex items-center space-x-3">
-                            <button onclick="cancelAnalysis()" id="cancel-btn" 
-                                class="hidden px-4 py-2 text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 rounded-lg transition-all">
-                                Cancel
-                            </button>
-                            <button onclick="runAnalysis()" id="analyze-btn" 
-                                class="px-8 py-2.5 btn-execute rounded-lg flex items-center space-x-3 shadow-md">
-                                <span id="btn-text">Scan</span>
-                            </button>
+                            <button onclick="switchView('editor')"
+                                class="text-[10px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-1"
+                                id="tab-editor">Editor</button>
+                            <button onclick="switchView('visual-pdf')"
+                                class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b-2 border-transparent pb-1 hidden"
+                                id="tab-visual-pdf">Visual Audit</button>
                         </div>
+                        <div class="h-4 w-px bg-slate-100"></div>
+                        <span id="char-count" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">0
+                            Characters</span>
                     </div>
-                </main>
 
-                <!-- History View -->
-                <main id="view-history" class="flex-1 flex flex-col h-full overflow-hidden hidden bg-slate-50/30">
-                    <div class="p-10 lg:p-14 space-y-6 overflow-y-auto h-full">
-                        <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">Forensic Archive</h2>
-                            <button onclick="clearHistory()" class="text-[9px] font-bold text-red-400 uppercase">Purge</button>
-                        </div>
-                        <div id="history-list" class="space-y-3"></div>
+                    <div class="flex items-center space-x-3">
+                        <button onclick="cancelAnalysis()" id="cancel-btn"
+                            class="hidden px-4 py-2 text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 rounded-lg transition-all">
+                            Cancel
+                        </button>
+                        <button onclick="runAnalysis()" id="analyze-btn"
+                            class="px-8 py-2.5 bg-slate-900 text-white rounded-lg flex items-center space-x-3 shadow-md hover:bg-black transition-all">
+                            <span id="btn-text" class="text-[10px] font-black uppercase tracking-widest">Scan</span>
+                        </button>
                     </div>
-                </main>
+                </div>
             </div>
 
-            <!-- Right Pane: Results -->
-            <div class="results-pane flex-[1] min-w-[320px] lg:max-w-[380px] h-full overflow-y-auto lg:overflow-y-auto bg-slate-50 border-l lg:border-l border-slate-100 no-scrollbar">
+            <div
+                class="results-pane flex-[1] min-w-[320px] lg:max-w-[380px] h-full overflow-y-auto bg-slate-50 border-l border-slate-100 no-scrollbar">
                 {{RESULTS}}
             </div>
         </div>
     </div>
 
-    <script src="/static/js/forensic.js"></script>
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const mainWrapper = document.getElementById('main-wrapper');
-            const isMobile = window.innerWidth < 1024;
-            if (isMobile) {
-                const isOpen = sidebar.classList.toggle('mobile-open');
-                mainWrapper.classList.toggle('mobile-sidebar-open', isOpen);
-                sidebar.classList.toggle('collapsed-sidebar', !isOpen);
-            } else {
-                const isCollapsed = sidebar.classList.toggle('collapsed-sidebar');
-                mainWrapper.classList.toggle('sidebar-collapsed-main', isCollapsed);
-            }
-        }
-        function handleResize() {
-            const sidebar = document.getElementById('sidebar');
-            const mainWrapper = document.getElementById('main-wrapper');
-            if (window.innerWidth < 1024) {
-                mainWrapper.classList.remove('sidebar-collapsed-main');
-                sidebar.classList.add('collapsed-sidebar');
-                sidebar.classList.remove('mobile-open');
-                mainWrapper.classList.remove('mobile-sidebar-open');
-            } else {
-                sidebar.classList.remove('mobile-open');
-                sidebar.classList.remove('collapsed-sidebar');
-                mainWrapper.classList.remove('sidebar-collapsed-main');
-                mainWrapper.classList.remove('mobile-sidebar-open');
-            }
-        }
-        window.addEventListener('resize', handleResize);
-        if (window.innerWidth < 1024) document.getElementById('sidebar').classList.add('collapsed-sidebar');
-    </script>
+    <script src="/static/js/notifications.js?v=1.0.4"></script>
+    <script src="/static/js/sidebar.js?v=1.0.4"></script>
+    <script src="/static/js/auth.js?v=1.0.4"></script>
+    <script src="/static/js/components/PDFVisualizer.js?v=1.0.5"></script>
+    <script src="/static/js/components/ConfirmModal.js?v=2.0.0"></script>
+    <script src="/static/js/forensic.js?v=2.0.0"></script>
 </body>
+
 </html>

@@ -190,8 +190,8 @@ const ForensicEngine = {
     },
 
     updateUI(res) {
-        document.getElementById('ai-prob').innerText = (res.ai_probability || 0).toFixed(2) + '%';
-        document.getElementById('human-prob').innerText = (res.human_probability || 0).toFixed(2) + '%';
+        document.getElementById('ai-prob').innerText = res.ai_probability.toFixed(2) + '%';
+        document.getElementById('human-prob').innerText = res.human_probability.toFixed(2) + '%';
         document.getElementById('ai-bar').style.width = res.ai_probability + '%';
         document.getElementById('human-bar').style.width = res.human_probability + '%';
         
@@ -203,8 +203,8 @@ const ForensicEngine = {
         Object.entries(map).forEach(([id, key]) => {
             const el = document.getElementById(id);
             if (el) {
-                const val = (res.performance && res.performance[key] !== undefined) ? res.performance[key] : null;
-                el.innerText = val !== null ? (typeof val === 'number' ? val.toFixed(2) : val) + '%' : '--';
+                const val = typeof res.performance[key] === 'number' ? res.performance[key].toFixed(2) : res.performance[key];
+                el.innerText = val + '%';
             }
         });
 
@@ -301,15 +301,16 @@ const ForensicEngine = {
             
             // Reconstruct the response object for UI update
             const res = {
-                ai_probability: parseFloat(item.ai_probability),
-                human_probability: 100 - parseFloat(item.ai_probability),
+                ai_probability: item.ai_probability,
+                human_probability: 100 - item.ai_probability,
                 perplexity: item.perplexity,
                 burstiness: item.burstiness,
                 classification: item.classification,
-                performance: typeof item.metrics === 'string' ? JSON.parse(item.metrics) : item.metrics,
-                radar: typeof item.radar === 'string' ? JSON.parse(item.radar) : item.radar,
-                consensus: [], 
-                sentences: [] 
+                metrics: item.metrics,
+                radar: item.radar,
+                performance: item.metrics, // Some overlap here
+                consensus: [], // History currently doesn't store consensus but we can mock or expand
+                sentences: [] // Full sentence highlights not stored in history for speed
             };
             
             this.updateUI(res);
