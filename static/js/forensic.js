@@ -55,7 +55,11 @@ const ForensicEngine = {
         const fileInput = document.getElementById('file-input');
         if (fileInput) {
             fileInput.addEventListener('change', (e) => {
-                if (e.target.files[0]) this.uploadFile(e.target.files[0]);
+                const file = e.target.files[0];
+                if (file) {
+                    this.uploadFile(file);
+                    fileInput.value = ''; // Reset to allow re-upload of same file
+                }
             });
         }
 
@@ -125,15 +129,37 @@ const ForensicEngine = {
         }
     },
 
+    async pasteFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            const textarea = document.getElementById('input-text');
+            if (textarea && text) {
+                textarea.value = text;
+                textarea.dispatchEvent(new Event('input'));
+                window.success("Clipboard Ingested.");
+            } else if (!text) {
+                window.error("Clipboard is empty.");
+            }
+        } catch (err) {
+            window.error("Clipboard access denied. Use Ctrl+V.");
+        }
+    },
+
     async uploadFile(file) {
         const overlay = document.getElementById('loading-overlay');
         const textarea = document.getElementById('input-text');
         const visualTab = document.getElementById('tab-visual-pdf');
+        const clearBtn = document.getElementById('clear-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
         
         if (overlay) {
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
         }
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
+
+        this.abortController = new AbortController();
         this.currentPDFFile = file;
 
         const formData = new FormData();
@@ -142,7 +168,8 @@ const ForensicEngine = {
         try {
             const res = await fetch('/api/v1/upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                signal: this.abortController.signal
             }).then(r => r.json());
 
             if (res.text) {
@@ -159,13 +186,20 @@ const ForensicEngine = {
                 window.success("PDF Visual Audit Ready.");
             }
         } catch (err) {
-            console.error(err);
-            window.error("Error extracting PDF metadata.");
+            if (err.name === 'AbortError') {
+                console.log("Extraction cancelled.");
+            } else {
+                console.error(err);
+                window.error("Error extracting PDF metadata.");
+            }
         } finally {
             if (overlay) {
                 overlay.classList.add('hidden');
                 overlay.classList.remove('flex');
             }
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.remove('hidden');
+            this.abortController = null;
         }
     },
 
@@ -174,7 +208,7 @@ const ForensicEngine = {
         const highlighter = document.getElementById('highlighter-layer');
         if (!textarea || !highlighter) return;
         requestAnimationFrame(() => {
-            highlighter.style.transform = `translateY(-${textarea.scrollTop}px)`;
+            highlighter.scrollTop = textarea.scrollTop;
         });
     },
 
@@ -191,9 +225,11 @@ const ForensicEngine = {
         const btn = document.getElementById('analyze-btn');
         const cancelBtn = document.getElementById('cancel-btn');
         const overlay = document.getElementById('loading-overlay');
+        const clearBtn = document.getElementById('clear-btn');
 
         btn.disabled = true;
         if (cancelBtn) cancelBtn.classList.remove('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
         if (overlay) {
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
@@ -226,6 +262,7 @@ const ForensicEngine = {
         } finally {
             btn.disabled = false;
             if (cancelBtn) cancelBtn.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.remove('hidden');
             if (overlay) {
                 overlay.classList.add('hidden');
                 overlay.classList.remove('flex');
@@ -384,6 +421,36 @@ const ForensicEngine = {
         this.updateRadarChart(res.radar);
         this.updateConsensus(res.breakdown);
 
+        // Update Integrity Audit (Plagiarism)
+        if (res.plagiarism) {
+            const pIndex = document.getElementById('plag-index');
+            const pTrace = document.getElementById('plag-trace');
+            const pBar   = document.getElementById('plag-bar');
+            const pArchive = document.getElementById('integrity-archive-index');
+            const topArchive = document.getElementById('top-archive-count');
+            const histArchive = document.getElementById('history-archive-count');
+            
+            if (pIndex) pIndex.innerText = Math.round(res.plagiarism.index || 0) + '%';
+            if (pTrace) pTrace.innerText = (res.plagiarism.trace_count || 0);
+            if (pArchive) pArchive.innerText = (res.plagiarism.total_archives || 0);
+            if (topArchive) topArchive.innerText = (res.plagiarism.total_archives || 0);
+            if (histArchive) histArchive.innerText = (res.plagiarism.total_archives || 0);
+            if (pBar)   pBar.style.width = (res.plagiarism.index || 0) + '%';
+
+            // Handle Top Match deep-linking
+            const pSource = document.getElementById('plag-match-source');
+            const pLink   = document.getElementById('plag-match-link');
+            if (res.plagiarism.top_match_id) {
+                if (pSource) pSource.classList.remove('hidden');
+                if (pLink) {
+                    pLink.href = `/view/${res.plagiarism.top_match_id}`;
+                    pLink.innerText = `Forensic Record: ${res.plagiarism.top_match_id.substring(0, 8)}`;
+                }
+            } else {
+                if (pSource) pSource.classList.add('hidden');
+            }
+        }
+
         // Update Matrix
         const map = { 'f1-val': 'f1', 'precision-val': 'precision', 'recall-val': 'recall', 'conf-val': 'confidence' };
         Object.entries(map).forEach(([id, key]) => {
@@ -479,10 +546,14 @@ const ForensicEngine = {
                             Review Fragment
                         </button>
                     </div>
-                    <div class="flex items-center space-x-6">
+                    <div class="flex items-center space-x-4 lg:space-x-8">
                         <div class="text-right">
-                            <p class="text-xl font-black text-slate-900 tabular-nums">${Math.round(item.ai_probability)}%</p>
-                            <p class="text-[8px] font-black text-slate-300 uppercase tracking-widest">Neural Score</p>
+                            <p class="text-lg lg:text-xl font-black text-slate-900 tabular-nums">${Math.round(item.ai_probability)}%</p>
+                            <p class="text-[8px] font-black text-slate-300 uppercase tracking-widest">Neural</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-lg lg:text-xl font-black text-indigo-500 tabular-nums">${Math.round(item.plagiarism || 0)}%</p>
+                            <p class="text-[8px] font-black text-slate-300 uppercase tracking-widest">Integrity</p>
                         </div>
                         <button onclick="event.stopPropagation(); ForensicEngine.deleteAudit('${item.id}')" class="p-2.5 bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

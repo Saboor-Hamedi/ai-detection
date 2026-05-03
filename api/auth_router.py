@@ -129,8 +129,16 @@ async def get_settings(db: Session = Depends(get_db), token: str = Depends(verif
 @router.post("/settings")
 async def update_settings_api(data: UserSettingsUpdate, db: Session = Depends(get_db), token: str = Depends(verify_session)):
     user_id = auth_service.validate_token(token)
+    
+    # Industrial UPSERT: Ensures settings row exists and is synchronized
     db.execute(
-        text("UPDATE user_settings SET high_intensity = :hi, auto_archive = :aa WHERE user_id = :id"),
+        text("""
+            INSERT INTO user_settings (user_id, high_intensity, auto_archive) 
+            VALUES (:id, :hi, :aa)
+            ON CONFLICT (user_id) DO UPDATE 
+            SET high_intensity = EXCLUDED.high_intensity, 
+                auto_archive = EXCLUDED.auto_archive
+        """),
         {"hi": data.high_intensity, "aa": data.auto_archive, "id": user_id}
     )
     db.commit()

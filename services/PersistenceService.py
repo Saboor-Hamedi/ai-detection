@@ -30,13 +30,14 @@ class PersistenceService:
             audit_id = str(uuid.uuid4())
             db.execute(
                 text("""
-                    INSERT INTO audits (id, document_id, ai_probability, perplexity, burstiness, entropy, classification_verdict, metrics, radar_data) 
-                    VALUES (:a_id, :d_id, :prob, :ppl, :burst, :ent, :verdict, :metrics, :radar)
+                    INSERT INTO audits (id, document_id, ai_probability, plagiarism_score, perplexity, burstiness, entropy, classification_verdict, metrics, radar_data) 
+                    VALUES (:a_id, :d_id, :prob, :plag, :ppl, :burst, :ent, :verdict, :metrics, :radar)
                 """),
                 {
                     "a_id": audit_id,
                     "d_id": doc_id,
                     "prob": result['ai_probability'],
+                    "plag": result['plagiarism']['index'],
                     "ppl": result['perplexity'],
                     "burst": result['burstiness'],
                     "ent": result['metrics']['entropy'],
@@ -74,6 +75,7 @@ class PersistenceService:
                 SELECT 
                     a.id, 
                     a.ai_probability, 
+                    a.plagiarism_score as plagiarism,
                     a.classification_verdict as classification, 
                     a.created_at, 
                     f.content_text as full_text,
@@ -95,6 +97,7 @@ class PersistenceService:
                 history.append({
                     "id": str(row.id),
                     "ai_probability": row.ai_probability,
+                    "plagiarism": row.plagiarism,
                     "classification": row.classification,
                     "date": row.created_at.strftime("%Y-%m-%d %H:%M"),
                     "snippet": row.full_text[:100] + "...",
@@ -127,7 +130,6 @@ class PersistenceService:
     def delete_audit(db: Session, user_id: str, audit_id: str):
         """Removes a single specific audit and its associated document."""
         try:
-            # We delete the document, which cascades to audits and fragments
             db.execute(
                 text("""
                     DELETE FROM documents 
@@ -141,5 +143,31 @@ class PersistenceService:
         except Exception as e:
             db.rollback()
             return False
+
+    @staticmethod
+    def get_audit(db: Session, audit_id: str):
+        """Retrieves full forensic details for a specific archive record with UUID safety."""
+        try:
+            # Ensure we're querying with a clean UUID string
+            clean_id = audit_id.strip()
+            
+            query = text("""
+                SELECT 
+                    d.filename, 
+                    f.content_text, 
+                    a.created_at,
+                    a.ai_probability,
+                    a.classification_verdict,
+                    a.metrics
+                FROM audits a
+                JOIN documents d ON a.document_id = d.id
+                JOIN audit_fragments f ON a.id = f.audit_id
+                WHERE a.id = CAST(:a_id AS UUID)
+                LIMIT 1
+            """)
+            return db.execute(query, {"a_id": clean_id}).fetchone()
+        except Exception as e:
+            print(f"[PERSISTENCE ERROR] Audit retrieval failure for {audit_id}: {e}")
+            return None
 
 persistence_service = PersistenceService()

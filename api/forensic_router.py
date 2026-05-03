@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Request
 from pydantic import BaseModel
 from services.AIDetectionBrain import engine
+from services.PlagiarismBrain import plagiarism_brain
 from services.pdf_manager import pdf_manager
 from services.AuthService import auth_service
 from services.PersistenceService import persistence_service
@@ -54,7 +55,10 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
     research_text = request.text
     if not research_text: raise HTTPException(status_code=400, detail="Empty text")
     
-    # NEURAL TURBO-SAMPLING: 
+    # 1. Integrity Audit (Plagiarism)
+    plag_result = plagiarism_brain.check_integrity(db, research_text)
+
+    # 2. NEURAL TURBO-SAMPLING: 
     # For massive documents (80k+), we audit paragraphs to avoid 1000s of model calls.
     is_massive = len(research_text) > 30000
     if is_massive:
@@ -128,6 +132,7 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
     final_result = {
         "ai_probability": global_ai_prob,
         "human_probability": round(100 - global_ai_prob, 2),
+        "plagiarism": plag_result,
         "perplexity": global_ppl,
         "burstiness": round(burstiness, 2),
         "classification": classification,
@@ -143,8 +148,8 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
         },
         "consensus": [
             {"name": "Neural Entropy", "probability": global_ai_prob, "verdict": classification},
-            {"name": "Burstiness Index", "probability": max(5, 100 - (burstiness * 10)), "verdict": "Human" if burstiness > 5 else "AI"},
-            {"name": "Lexical Audit", "probability": (1 - global_unique) * 100, "verdict": "AI" if global_unique < 0.4 else "Human"}
+            {"name": "Integrity Audit", "probability": plag_result['index'], "verdict": "Suspect" if plag_result['index'] > 20 else "Original"},
+            {"name": "Lexical Audit", "probability": (1 - global_unique) * 100, "verdict": "Machine" if global_unique < 0.4 else "Human"}
         ]
     }
 
