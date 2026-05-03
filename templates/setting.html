@@ -7,71 +7,98 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        #main-wrapper {
+            height: 100vh;
+            width: calc(100vw - 14rem);
+            margin-left: 14rem;
+            display: flex;
+            flex-direction: column;
+            transition: all 300ms ease-in-out;
+        }
+
+        /* RESPONSIVE OVERRIDE */
+        @media (max-width: 1023px) {
+            #main-wrapper { width: calc(100vw - 55px) !important; margin-left: 55px !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-hidden">
-    <div class="h-screen flex flex-col overflow-hidden">
-        <div class="flex flex-1 overflow-hidden">
-            {{SIDEBAR}}
+    <div class="h-screen flex overflow-hidden">
+        {{SIDEBAR}}
 
-            <div class="flex-1 flex flex-col relative min-w-0 bg-white">
-                {{HEADER}}
+        <div id="main-wrapper" class="bg-white">
+            {{HEADER}}
 
-                <div class="flex-1 overflow-y-auto no-scrollbar p-12 lg:p-20">
-                    <div class="max-w-2xl mx-auto space-y-12">
-                        <div>
-                            <h1 class="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Research Settings</h1>
-                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Laboratory Configuration & Forensic Parameters</p>
+            <div class="flex-1 overflow-y-auto no-scrollbar p-12 lg:p-20">
+                <div class="max-w-2xl mx-auto space-y-12">
+                    <div>
+                        <h1 class="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Research Settings</h1>
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Laboratory Configuration & Forensic Parameters</p>
+                    </div>
+
+                    <!-- Profile Section -->
+                    <section class="space-y-6">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Profile Authority</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-2">
+                                <label class="text-[9px] font-black text-slate-500 uppercase">Researcher Name</label>
+                                <input type="text" id="set-name" value="{{USER_NAME}}" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[9px] font-black text-slate-500 uppercase">Email Signature</label>
+                                <input type="email" value="{{USER_EMAIL}}" class="w-full bg-slate-100 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold text-slate-400" disabled>
+                            </div>
                         </div>
+                    </section>
 
-                        <!-- Profile Section -->
-                        <section class="space-y-6">
-                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Profile Authority</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div class="space-y-2">
-                                    <label class="text-[9px] font-black text-slate-500 uppercase">Researcher Name</label>
-                                    <input type="text" value="John Doe" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all">
+                    <!-- Password Rotation -->
+                    <section class="space-y-6">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Security Credentials</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="space-y-2">
+                                <label class="text-[9px] font-black text-slate-500 uppercase">Current Password</label>
+                                <input type="password" id="set-old-pwd" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all" placeholder="••••••••">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[9px] font-black text-slate-500 uppercase">New Security Signature</label>
+                                <input type="password" id="set-new-pwd" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all" placeholder="Enter new password">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Engine Configuration -->
+                    <section class="space-y-6">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Neural Engine Parameters</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div>
+                                    <p class="text-[10px] font-black text-slate-900 uppercase">High-Intensity Forensic Scans</p>
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase">Increases accuracy but adds neural latency</p>
                                 </div>
-                                <div class="space-y-2">
-                                    <label class="text-[9px] font-black text-slate-500 uppercase">Email Signature</label>
-                                    <input type="email" value="john.doe@neural.lab" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all" disabled>
+                                <div class="w-10 h-5 bg-emerald-500 rounded-full relative cursor-pointer">
+                                    <div class="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
                                 </div>
                             </div>
-                        </section>
-
-                        <!-- Engine Configuration -->
-                        <section class="space-y-6">
-                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Neural Engine Parameters</h3>
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                    <div>
-                                        <p class="text-[10px] font-black text-slate-900 uppercase">High-Intensity Forensic Scans</p>
-                                        <p class="text-[8px] font-bold text-slate-400 uppercase">Increases accuracy but adds neural latency</p>
-                                    </div>
-                                    <div class="w-10 h-5 bg-emerald-500 rounded-full relative cursor-pointer">
-                                        <div class="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
-                                    </div>
+                            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                <div>
+                                    <p class="text-[10px] font-black text-slate-900 uppercase">Automatic Document Archiving</p>
+                                    <p class="text-[8px] font-bold text-slate-400 uppercase">Persist every scan to the forensic history</p>
                                 </div>
-                                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                    <div>
-                                        <p class="text-[10px] font-black text-slate-900 uppercase">Automatic Document Archiving</p>
-                                        <p class="text-[8px] font-bold text-slate-400 uppercase">Persist every scan to the forensic history</p>
-                                    </div>
-                                    <div class="w-10 h-5 bg-emerald-500 rounded-full relative cursor-pointer">
-                                        <div class="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
-                                    </div>
+                                <div class="w-10 h-5 bg-emerald-500 rounded-full relative cursor-pointer">
+                                    <div class="absolute right-1 top-1 w-3 h-3 bg-white rounded-full"></div>
                                 </div>
                             </div>
-                        </section>
-
-                        <!-- Action Bar -->
-                        <div class="pt-8 flex items-center justify-end space-x-4">
-                            <button onclick="window.location.href='/'" class="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all">Cancel</button>
-                            <button class="px-10 py-3 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black shadow-lg shadow-slate-900/10 transition-all">Save Changes</button>
                         </div>
+                    </section>
+
+                    <!-- Action Bar -->
+                    <div class="pt-8 flex items-center justify-end space-x-4">
+                        <button onclick="window.location.href='/'" class="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all">Cancel</button>
+                        <button onclick="updateSettings()" class="px-10 py-3 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black shadow-lg shadow-slate-900/10 transition-all">Save Changes</button>
                     </div>
                 </div>
             </div>
@@ -81,7 +108,42 @@
     <!-- Core Scripts -->
     <script src="/static/js/notifications.js?v=1.0.4"></script>
     <script src="/static/js/auth.js?v=1.0.4"></script>
+    <script src="/static/js/sidebar.js?v=1.0.4"></script>
     <script>
+        async function updateSettings() {
+            const name = document.getElementById('set-name').value;
+            const oldPwd = document.getElementById('set-old-pwd').value;
+            const newPwd = document.getElementById('set-new-pwd').value;
+
+            try {
+                // 1. Update Profile
+                await fetch('/api/auth/update-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name: name })
+                });
+
+                // 2. Change Password if provided
+                if (oldPwd && newPwd) {
+                    const res = await fetch('/api/auth/change-password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
+                    });
+                    if (!res.ok) {
+                        const data = await res.json();
+                        window.error(data.detail || "Security rotation failed.");
+                        return;
+                    }
+                }
+
+                window.success("Laboratory profile synchronized.");
+                setTimeout(() => window.location.href = '/', 1000);
+            } catch (err) {
+                window.error("Neural link error.");
+            }
+        }
+
         // Simple Navigation for Settings
         window.switchView = (view) => {
             if (view === 'editor' || view === 'history') {

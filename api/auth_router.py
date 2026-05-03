@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 from services.database import get_db
 from services.AuthService import auth_service
+from api.forensic_router import verify_session
 from sqlalchemy import text
 import uuid
 
@@ -17,6 +18,13 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
     remember: bool = False
+
+class ChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+class UpdateProfile(BaseModel):
+    full_name: str
 
 @router.post("/register")
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
@@ -79,3 +87,26 @@ async def logout(response: Response):
         samesite="lax"
     )
     return {"status": "success", "message": "Logged out"}
+
+@router.post("/update-profile")
+async def update_profile(data: UpdateProfile, db: Session = Depends(get_db), token: str = Depends(verify_session)):
+    user_id = auth_service.validate_token(token)
+    db.execute(
+        text("UPDATE users SET full_name = :name WHERE id = :id"),
+        {"name": data.full_name, "id": user_id}
+    )
+    db.commit()
+    return {"status": "success", "message": "Profile updated"}
+
+@router.post("/change-password")
+async def change_password(data: ChangePassword, db: Session = Depends(get_db), token: str = Depends(verify_session)):
+    user_id = auth_service.validate_token(token)
+    user = db.execute(text("SELECT password_hash FROM users WHERE id = :id"), {"id": user_id}).fetchone()
+    
+    if not auth_service.verify_password(data.old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+    
+    new_hash = auth_service.hash_password(data.new_password)
+    db.execute(text("UPDATE users SET password_hash = :pwd WHERE id = :id"), {"pwd": new_hash, "id": user_id})
+    db.commit()
+    return {"status": "success", "message": "Password changed"}

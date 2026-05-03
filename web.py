@@ -8,7 +8,11 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from services.database import get_db
 from api.forensic_router import router as forensic_router
 from api.auth_router import router as auth_router
 from services.AuthService import auth_service
@@ -56,16 +60,23 @@ def get_component(name):
         return f.read()
 
 @app.get("/settings", response_class=HTMLResponse)
-async def settings_page(request: Request):
+async def settings_page(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get("access_token")
-    if not token or not auth_service.validate_token(token):
+    user_id = auth_service.validate_token(token)
+    if not user_id:
         return RedirectResponse(url="/login")
     
     try:
+        user = db.execute(text("SELECT email, full_name FROM users WHERE id = :id"), {"id": user_id}).fetchone()
+        
         sidebar = get_component("sidebar")
         dropdown = get_component("dropdown")
         header = get_component("header").replace("{{DROPDOWN}}", dropdown)
         settings = get_component("setting")
+        
+        # Replace Dynamic User Data
+        settings = settings.replace("{{USER_NAME}}", user.full_name or "Researcher")\
+                           .replace("{{USER_EMAIL}}", user.email)
         
         return settings.replace("{{SIDEBAR}}", sidebar).replace("{{HEADER}}", header)
     except Exception as e:
