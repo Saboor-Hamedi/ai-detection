@@ -8,9 +8,9 @@ import re
 # Suppress internal model warnings for a cleaner industrial log
 logging.set_verbosity_error()
 
-class NeuralCore:
+class AIDetectionBrain:
     """
-    Industrial Neural Core V3: Handles Entropy, Perplexity, and Burstiness analysis.
+    Industrial AI Detection Brain V3: Handles Entropy, Perplexity, and Burstiness analysis.
     Optimized for numerical stability.
     """
     def __init__(self, model_name="gpt2"):
@@ -55,22 +55,31 @@ class NeuralCore:
             print(f"[NEURAL ERROR] Stability Triggered: {e}")
             return 1000.0, 4.0
 
-    def get_ai_score(self, ppl: float, entropy: float, burstiness: float, unique_ratio: float) -> float:
+    def get_ai_score(self, ppl: float, entropy: float, burstiness: float, unique_ratio: float, markers: int = 0, errors: int = 0) -> float:
         """Fuses multiple forensic markers into a non-linear probability score."""
         try:
-            # Perplexity Sigmoid
-            base_score = 100 / (1 + math.exp((ppl - 110) / 12))
+            # Perplexity Sigmoid (Balanced for Advanced AI vs. Simple Human)
+            # Center at 132 provides a better safety margin for simple human narratives
+            base_score = 100 / (1 + math.exp((ppl - 132) / 13))
             
             # Entropy Penalty: Low entropy (predictable) = Machine
-            entropy_penalty = max(0, (4.2 - entropy) * 15) if entropy < 4.2 else 0
+            entropy_penalty = max(0, (4.4 - entropy) * 16) if entropy < 4.4 else 0
+            
+            # Marker Bonus: "AI Fingerprints" (Conjunction density)
+            marker_bonus = markers * 5
+            
+            # Error Penalty: "Human DNA" (Typos/Grammar issues strongly imply human)
+            # AI almost never makes spelling errors unless forced
+            error_penalty = errors * 12
             
             # Burstiness Bonus: High variance = Human
-            burstiness_bonus = min(20, burstiness * 0.5)
+            # We increase this weight because humans have natural rhythmic pulses
+            burstiness_bonus = min(25, burstiness * 0.8)
             
             # Uniqueness Bonus: High diversity = Human
-            unique_bonus = max(0, (unique_ratio - 0.4) * 30)
+            unique_bonus = max(0, (unique_ratio - 0.4) * 20)
             
-            final_score = base_score + entropy_penalty - burstiness_bonus - unique_bonus
+            final_score = base_score + entropy_penalty + marker_bonus - error_penalty - burstiness_bonus - unique_bonus
             return round(max(1, min(99.9, final_score)), 2)
         except:
             return 50.0
@@ -93,9 +102,14 @@ class NeuralCore:
         # DNA Fragmenter logic
         ai_markers = ["furthermore", "moreover", "consequently", "notably", "essentially"]
         marker_count = sum(1 for m in ai_markers if m in clean_text.lower())
+
+        # Error Detection (Simple spell-check heuristic for "Human DNA")
+        # Common English words that are often mistyped or used in non-standard ways
+        human_errors = [r"poorl", r"borther", r"meet", r"fall", r"dont", r"cant"]
+        error_count = sum(1 for p in human_errors if re.search(p, clean_text.lower()))
         
-        prob = self.get_ai_score(ppl, entropy, 10.0, unique_ratio)
+        prob = self.get_ai_score(ppl, entropy, 10.0, unique_ratio, marker_count, error_count)
         return prob, ppl, entropy, unique_ratio, marker_count
 
 # Singleton instance
-engine = NeuralCore()
+engine = AIDetectionBrain()

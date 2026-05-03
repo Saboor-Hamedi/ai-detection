@@ -51,6 +51,11 @@
     overflow-y: auto;
 }
 
+/* Hide Upload PDF button as soon as text exists in the textarea */
+#input-text:not(:placeholder-shown) ~ #placeholder-actions {
+    display: none !important;
+}
+
 /* Forensic Highlight Colors */
 .highlight-ai-high { background-color: rgba(239, 68, 68, 0.25); border-radius: 2px; }
 .highlight-ai-med { background-color: rgba(245, 158, 11, 0.2); border-radius: 2px; }

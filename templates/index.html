@@ -7,29 +7,39 @@
                 <div class="flex-1 relative editor-wrapper overflow-hidden">
                     <div class="editor-content-area">
                         <div id="highlighter-layer"></div>
-                        <textarea id="input-text" class="no-scrollbar" placeholder="Paste research text here..."></textarea>
+                        <textarea id="input-text" class="no-scrollbar" placeholder="Paste research text here..."
+                            oninput="var a=document.getElementById('placeholder-actions');if(a)a.style.display=this.value.trim()?'none':''"></textarea>
                         <div id="placeholder-actions">
                             <input type="file" id="file-input" class="hidden" accept=".pdf">
                             <button onclick="document.getElementById('file-input').click()" class="action-btn">
-                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
-                                <span class="text-[9px] font-black text-slate-700 uppercase tracking-tight">Upload PDF</span>
+                                <span class="text-[9px] font-black text-slate-700 uppercase tracking-tight">Upload
+                                    PDF</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- Scoped Telemetry -->
-                    <div id="loading-overlay" class="hidden absolute inset-0 z-[200] flex flex-col items-center justify-center">
-                        <div class="w-10 h-10 border-[3px] border-slate-900 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p class="text-[10px] font-black text-slate-900 uppercase tracking-widest">Neural Analysis in Progress</p>
+                    <div id="loading-overlay"
+                        class="hidden absolute inset-0 z-[200] flex flex-col items-center justify-center">
+                        <div
+                            class="w-10 h-10 border-[3px] border-slate-900 border-t-transparent rounded-full animate-spin mb-4">
+                        </div>
+                        <p class="text-[10px] font-black text-slate-900 uppercase tracking-widest">Neural Analysis in
+                            Progress</p>
                     </div>
                 </div>
             </main>
 
             <!-- PDF Visualization Area -->
             <main id="view-visual-pdf" class="absolute inset-0 flex flex-col bg-slate-50 hidden">
-                <div id="pdf-container" class="flex-1 overflow-y-auto overflow-x-hidden p-12 lg:p-20 flex flex-col items-center space-y-8 scroll-smooth no-scrollbar"></div>
+                <div id="pdf-container"
+                    class="flex-1 overflow-y-auto overflow-x-hidden p-12 lg:p-20 flex flex-col items-center space-y-8 scroll-smooth no-scrollbar">
+                </div>
             </main>
 
             <!-- Forensic Archive Area -->
@@ -38,9 +48,12 @@
                     <div class="flex justify-between items-center mb-4">
                         <div class="flex items-center space-x-3">
                             <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">Archive</h2>
-                            <span class="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-black uppercase rounded-full tracking-widest">Database Persistence Active</span>
+                            <span
+                                class="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[8px] font-black uppercase rounded-full tracking-widest">Database
+                                Persistence Active</span>
                         </div>
-                        <button onclick="ForensicEngine.clearHistory()" class="text-[9px] font-bold text-red-400 uppercase">Clear</button>
+                        <button onclick="ForensicEngine.clearHistory()"
+                            class="text-[9px] font-bold text-red-400 uppercase">Clear</button>
                     </div>
                     <div id="history-list" class="space-y-3"></div>
                 </div>
@@ -51,24 +64,36 @@
         <div class="h-14 border-t border-slate-100 flex items-center justify-between px-4 bg-white flex-shrink-0 z-50">
             <div class="flex items-center space-x-8">
                 <div class="flex items-center space-x-3">
-                    <button onclick="switchView('editor')" class="text-[10px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-1" id="tab-editor">Editor</button>
-                    <button onclick="switchView('visual-pdf')" class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b-2 border-transparent pb-1 hidden" id="tab-visual-pdf">Visual Audit</button>
+                    <button onclick="switchView('editor')"
+                        class="text-[10px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-1"
+                        id="tab-editor">Editor</button>
+                    <button onclick="switchView('visual-pdf')"
+                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b-2 border-transparent pb-1 hidden"
+                        id="tab-visual-pdf">Visual Audit</button>
                 </div>
                 <div class="h-4 w-px bg-slate-100"></div>
-                <span id="char-count" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">0 Characters</span>
+                <span id="char-count" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">0
+                    Characters</span>
             </div>
 
-            <div class="flex items-center space-x-3">
-                <button onclick="cancelAnalysis()" id="cancel-btn" class="hidden px-4 py-2 text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 rounded-lg transition-all">Cancel</button>
-                <button onclick="runAnalysis()" id="analyze-btn" class="px-8 py-2.5 bg-slate-900 text-white rounded-lg flex items-center space-x-3 shadow-md hover:bg-black transition-all">
-                    <span id="btn-text" class="text-[10px] font-black uppercase tracking-widest">Scan</span>
+            <div class="flex items-center space-x-2">
+                <button onclick="cancelAnalysis()" id="cancel-btn"
+                    class="hidden px-3 py-1.5 text-[9px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 rounded-md transition-all">Cancel</button>
+                <button onclick="ForensicEngine.clearEditor()" id="clear-btn"
+                    class="px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 rounded-md transition-all border border-slate-100">Clear</button>
+                <button onclick="ForensicEngine.downloadReport()" id="report-btn"
+                    class="hidden px-3 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 rounded-md transition-all border border-slate-100">Report</button>
+                <button onclick="runAnalysis()" id="analyze-btn"
+                    class="px-4 py-1.5 bg-slate-900 text-white rounded-md flex items-center space-x-2 shadow-sm hover:bg-black transition-all">
+                    <span id="btn-text" class="text-[9px] font-normal uppercase tracking-widest">Scan</span>
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Telemetry Panel -->
-    <div class="results-pane flex-[1] min-w-[320px] lg:max-w-[380px] h-full overflow-y-auto bg-slate-50 border-l border-slate-100 no-scrollbar">
+    <div
+        class="results-pane flex-[1] min-w-[320px] lg:max-w-[380px] h-full overflow-y-auto bg-slate-50 border-l border-slate-100 no-scrollbar">
         {{RESULTS}}
     </div>
 </div>

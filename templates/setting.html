@@ -1,69 +1,69 @@
-<div class="flex-1 overflow-y-auto no-scrollbar p-12 lg:p-20">
-    <div class="max-w-2xl mx-auto space-y-12">
+<div class="flex-1 overflow-y-auto no-scrollbar p-6 lg:p-20">
+    <div class="max-w-2xl mx-auto space-y-10 lg:space-y-12">
         <div>
-            <h1 class="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Research Settings</h1>
-            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Laboratory Configuration & Forensic Parameters</p>
+            <h1 class="text-xl lg:text-2xl font-black text-slate-900 uppercase tracking-tighter mb-2">Research Settings</h1>
+            <p class="text-[9px] lg:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Laboratory Configuration & Forensic Parameters</p>
         </div>
 
         <!-- Profile Section -->
-        <section class="space-y-6">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Profile Authority</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <section class="space-y-4 lg:space-y-6">
+            <h3 class="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Profile Authority</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8">
                 <div class="space-y-2">
-                    <label class="text-[9px] font-black text-slate-500 uppercase">Researcher Name</label>
-                    <input type="text" id="set-name" value="{{USER_NAME}}" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all">
+                    <label class="text-[8px] lg:text-[9px] font-black text-slate-500 uppercase">Researcher Name</label>
+                    <input type="text" id="set-name" value="{{USER_NAME}}" class="w-full bg-slate-50 border border-slate-100 rounded-md px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all">
                 </div>
                 <div class="space-y-2">
-                    <label class="text-[9px] font-black text-slate-500 uppercase">Email Signature</label>
-                    <input type="email" value="{{USER_EMAIL}}" class="w-full bg-slate-100 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold text-slate-400" disabled>
+                    <label class="text-[8px] lg:text-[9px] font-black text-slate-500 uppercase">Email Signature</label>
+                    <input type="email" value="{{USER_EMAIL}}" class="w-full bg-slate-100 border border-slate-100 rounded-md px-3 py-2.5 text-xs font-bold text-slate-400" disabled>
                 </div>
             </div>
         </section>
 
         <!-- Password Rotation -->
-        <section class="space-y-6">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Security Credentials</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <section class="space-y-4 lg:space-y-6">
+            <h3 class="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Security Credentials</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-8">
                 <div class="space-y-2">
-                    <label class="text-[9px] font-black text-slate-500 uppercase">Current Password</label>
-                    <input type="password" id="set-old-pwd" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all" placeholder="••••••••">
+                    <label class="text-[8px] lg:text-[9px] font-black text-slate-500 uppercase">Current Password</label>
+                    <input type="password" id="set-old-pwd" class="w-full bg-slate-50 border border-slate-100 rounded-md px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all" placeholder="••••••••">
                 </div>
                 <div class="space-y-2">
-                    <label class="text-[9px] font-black text-slate-500 uppercase">New Security Signature</label>
-                    <input type="password" id="set-new-pwd" class="w-full bg-slate-50 border border-slate-100 rounded-lg px-4 py-3 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all" placeholder="Enter new password">
+                    <label class="text-[8px] lg:text-[9px] font-black text-slate-500 uppercase">New Security Signature</label>
+                    <input type="password" id="set-new-pwd" class="w-full bg-slate-50 border border-slate-100 rounded-md px-3 py-2.5 text-xs font-bold focus:outline-none focus:border-slate-300 transition-all" placeholder="Enter new password">
                 </div>
             </div>
         </section>
 
         <!-- Engine Configuration -->
-        <section class="space-y-6">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Neural Engine Parameters</h3>
-            <div class="space-y-4">
-                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+        <section class="space-y-4 lg:space-y-6">
+            <h3 class="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100 pb-2">Neural Engine Parameters</h3>
+            <div class="space-y-3 lg:space-y-4">
+                <div class="flex items-center justify-between p-3 lg:p-4 bg-slate-50 rounded-lg border border-slate-100">
                     <div>
-                        <p class="text-[10px] font-black text-slate-900 uppercase">High-Intensity Forensic Scans</p>
-                        <p class="text-[8px] font-bold text-slate-400 uppercase">Increases accuracy but adds neural latency</p>
+                        <p class="text-[9px] lg:text-[10px] font-black text-slate-900 uppercase">High-Intensity Forensic Scans</p>
+                        <p class="text-[7px] lg:text-[8px] font-bold text-slate-400 uppercase">Increases accuracy but adds neural latency</p>
                     </div>
-                    <div id="toggle-hi" onclick="toggleSwitch('toggle-hi')" class="w-10 h-5 bg-slate-200 rounded-full relative cursor-pointer transition-colors duration-300">
-                        <div class="dot absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300" style="left: 4px;"></div>
+                    <div id="toggle-hi" onclick="toggleSwitch('toggle-hi')" class="w-8 h-4 lg:w-9 lg:h-5 bg-slate-200 rounded-full flex items-center px-1 cursor-pointer transition-colors duration-300">
+                        <div class="dot w-2.5 h-2.5 lg:w-3.5 lg:h-3.5 bg-white rounded-full shadow-sm transition-transform duration-300"></div>
                     </div>
                 </div>
-                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div class="flex items-center justify-between p-3 lg:p-4 bg-slate-50 rounded-lg border border-slate-100">
                     <div>
-                        <p class="text-[10px] font-black text-slate-900 uppercase">Automatic Document Archiving</p>
-                        <p class="text-[8px] font-bold text-slate-400 uppercase">Persist every scan to the forensic history</p>
+                        <p class="text-[9px] lg:text-[10px] font-black text-slate-900 uppercase">Automatic Document Archiving</p>
+                        <p class="text-[7px] lg:text-[8px] font-bold text-slate-400 uppercase">Persist every scan to the forensic history</p>
                     </div>
-                    <div id="toggle-aa" onclick="toggleSwitch('toggle-aa')" class="w-10 h-5 bg-slate-200 rounded-full relative cursor-pointer transition-colors duration-300">
-                        <div class="dot absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300" style="left: 4px;"></div>
+                    <div id="toggle-aa" onclick="toggleSwitch('toggle-aa')" class="w-8 h-4 lg:w-9 lg:h-5 bg-slate-200 rounded-full flex items-center px-1 cursor-pointer transition-colors duration-300">
+                        <div class="dot w-2.5 h-2.5 lg:w-3.5 lg:h-3.5 bg-white rounded-full shadow-sm transition-transform duration-300"></div>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- Action Bar -->
-        <div class="pt-8 flex items-center justify-end space-x-4">
-            <button onclick="window.location.href='/'" class="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all">Cancel</button>
-            <button onclick="updateSettings()" class="px-10 py-3 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-black shadow-lg shadow-slate-900/10 transition-all">Save Changes</button>
+        <div class="pt-6 lg:pt-8 flex items-center justify-end space-x-2">
+            <button onclick="window.location.href='/'" class="px-4 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all">Cancel</button>
+            <button onclick="updateSettings()" class="px-6 py-1.5 bg-slate-900 text-white rounded-md text-[9px] font-black uppercase tracking-widest hover:bg-black shadow-sm transition-all">Save</button>
         </div>
     </div>
 </div>
@@ -86,11 +86,12 @@
         if (active) {
             el.classList.remove('bg-slate-200');
             el.classList.add('bg-emerald-500');
-            dot.style.left = 'calc(100% - 16px)';
+            const travel = el.offsetWidth - dot.offsetWidth - 8; // Adjust for px-1 (4px each side)
+            dot.style.transform = `translateX(${travel}px)`;
         } else {
             el.classList.remove('bg-emerald-500');
             el.classList.add('bg-slate-200');
-            dot.style.left = '4px';
+            dot.style.transform = 'translateX(0)';
         }
         if (id === 'toggle-hi') state.hi = active;
         if (id === 'toggle-aa') state.aa = active;
@@ -113,26 +114,27 @@
         saveBtn.disabled = true;
 
         try {
-            // 1. Update Profile
-            await fetch('/api/auth/update-profile', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ full_name: name })
-            });
-
-            // 2. Update Engine Settings
-            const settingsRes = await fetch('/api/auth/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    high_intensity: state.hi, 
-                    auto_archive: state.aa 
+            // 1 & 2. Update Profile and Engine Settings in parallel for speed
+            const updates = [
+                fetch('/api/auth/update-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name: name })
+                }),
+                fetch('/api/auth/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        high_intensity: state.hi, 
+                        auto_archive: state.aa 
+                    })
                 })
-            });
+            ];
 
-            if (!settingsRes.ok) throw new Error("Settings sync failed");
+            const results = await Promise.all(updates);
+            if (results.some(r => !r.ok)) throw new Error("Synchronization failed");
 
-            // 3. Change Password if provided
+            // 3. Change Password if provided (sequential as it's a security sensitive operation)
             if (oldPwd && newPwd) {
                 const res = await fetch('/api/auth/change-password', {
                     method: 'POST',
@@ -149,7 +151,8 @@
             }
 
             window.success("Laboratory profile synchronized.");
-            setTimeout(() => window.location.href = '/', 800);
+            saveBtn.innerText = originalText;
+            saveBtn.disabled = false;
         } catch (err) {
             window.error("Neural link error: " + err.message);
             saveBtn.innerText = originalText;

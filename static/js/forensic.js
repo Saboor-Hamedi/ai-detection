@@ -8,6 +8,7 @@ const ForensicEngine = {
     abortController: null,
     currentPDFFile: null,
     visualData: null,
+    lastResult: null,
 
     init() {
         const textarea = document.getElementById('input-text');
@@ -46,6 +47,11 @@ const ForensicEngine = {
             this.syncScroll();
         });
 
+        this.bindPdfAndDragEvents();
+    },
+
+    bindPdfAndDragEvents() {
+
         // File Input Handler
         const fileInput = document.getElementById('file-input');
         if (fileInput) {
@@ -81,6 +87,23 @@ const ForensicEngine = {
                 }
             });
         }
+    },
+
+    clearEditor() {
+        const textarea = document.getElementById('input-text');
+        const highlighter = document.getElementById('highlighter-layer');
+        if (textarea) {
+            textarea.value = '';
+            const charCount = document.getElementById('char-count');
+            if (charCount) charCount.innerText = '0 Characters';
+            this.checkPlaceholder();
+        }
+        if (highlighter) {
+            highlighter.innerHTML = '';
+        }
+        this.lastResult = null;
+        const reportBtn = document.getElementById('report-btn');
+        if (reportBtn) reportBtn.classList.add('hidden');
     },
 
     checkPlaceholder() {
@@ -180,8 +203,9 @@ const ForensicEngine = {
 
             this.updateUI(res);
             this.applyForensicHighlighting(res.sentences);
-            // No need for local save anymore, backend archives automatically
-            // But we reload history to show the new item immediately
+            this.lastResult = res;
+            const reportBtn = document.getElementById('report-btn');
+            if (reportBtn) reportBtn.classList.remove('hidden');
             this.renderHistory();
 
         } catch (err) {
@@ -206,6 +230,125 @@ const ForensicEngine = {
         if (this.abortController) {
             this.abortController.abort();
         }
+    },
+
+    downloadReport() {
+        if (!this.lastResult) { window.error("Run an analysis first."); return; }
+        const r = this.lastResult;
+        const bd = r.breakdown || {};
+        const ref = Math.random().toString(36).substr(2, 8).toUpperCase();
+        const ts  = new Date().toLocaleString();
+
+        const bar = (pct, color) => `
+            <div style="background:#f8fafc;border-radius:99px;overflow:hidden;height:10px;width:100%;margin-top:6px;">
+                <div style="height:100%;width:${pct}%;background:${color};border-radius:99px;"></div>
+            </div>`;
+
+        const html = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>Neural Lab — Forensic Audit Certificate ${ref}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  @page { size: auto; margin: 0mm; }
+  body { font-family: Arial, Helvetica, sans-serif; color:#0f172a; background:#fff; padding: 1.5in 1.5in; font-size:11px; position: relative; min-height: 100vh; }
+  h1  { font-size:26px; font-weight:900; letter-spacing:-0.5px; text-transform:uppercase; margin-bottom: 4px; }
+  h2  { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.2em; color:#94a3b8; margin-bottom:16px; }
+  .divider { border:none; border-top:4px solid #0f172a; margin:32px 0; }
+  .row  { display:flex; justify-content:space-between; align-items:flex-start; }
+  .card { border:1px solid #f1f5f9; border-radius:12px; padding:24px 28px; }
+  .big  { font-size:36px; font-weight:900; }
+  .label{ font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.15em; color:#94a3b8; margin-top:4px; }
+  .metric-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f8fafc; font-size:11px; }
+  .ring-row { display:flex; gap:32px; margin-top:10px; }
+  .ring-item { flex:1; text-align:center; }
+  .ring-pct  { font-size:24px; font-weight:900; margin-bottom:4px; }
+  .ring-lbl  { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#64748b; }
+  .verdict   { font-size:18px; font-weight:900; text-transform:uppercase; letter-spacing:0.05em; }
+  .disclaimer{ font-size:9px; color:#94a3b8; line-height:1.6; margin-top:48px; border-top:1px solid #f1f5f9; padding-top:24px; }
+  .report-footer { position: absolute; bottom: 1in; left: 3in; font-size: 8px; color: #cbd5e1; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; }
+  @media print { body { padding: 1.2in 1.2in; } .report-footer { bottom: 0.8in; } }
+</style>
+</head><body>
+
+<!-- HEADER -->
+<div class="row" style="align-items:flex-end; margin-bottom:8px;">
+  <div>
+    <h1>Forensic Audit Certificate</h1>
+    <p style="font-size:9px;color:#94a3b8;margin-top:4px;letter-spacing:0.2em;">NEURAL LAB INDUSTRIAL CORE v3.0</p>
+  </div>
+  <div style="text-align:right;">
+    <p style="font-size:9px;font-weight:700;">REF: ${ref}</p>
+    <p style="font-size:9px;color:#94a3b8;">${ts}</p>
+  </div>
+</div>
+<hr class="divider">
+
+<!-- VERDICT + SIGNATURE -->
+<div class="row" style="gap:24px; margin-bottom:24px;">
+  <div class="card" style="flex:1;">
+    <h2>Final Verdict</h2>
+    <p class="verdict">${r.classification}</p>
+    <div style="margin-top:16px;">
+      <div class="row" style="margin-bottom:4px;"><span style="font-size:10px;color:#64748b;">Human</span><span style="font-weight:900;">${Math.round(r.human_probability)}%</span></div>
+      ${bar(r.human_probability, '#10b981')}
+      <div class="row" style="margin-bottom:4px;margin-top:10px;"><span style="font-size:10px;color:#64748b;">Neural (AI)</span><span style="font-weight:900;">${Math.round(r.ai_probability)}%</span></div>
+      ${bar(r.ai_probability, '#ef4444')}
+    </div>
+  </div>
+
+  <div class="card" style="flex:1;">
+    <h2>Three-Way Breakdown</h2>
+    <div class="ring-row">
+      <div class="ring-item">
+        <div class="ring-pct" style="color:#ef4444;">${Math.round(bd.ai_exact || 0)}%</div>
+        <div class="ring-lbl">Exact AI<br>Match</div>
+      </div>
+      <div class="ring-item">
+        <div class="ring-pct" style="color:#f59e0b;">${Math.round(bd.ai_minor || 0)}%</div>
+        <div class="ring-lbl">Minor AI<br>Changes</div>
+      </div>
+      <div class="ring-item">
+        <div class="ring-pct" style="color:#10b981;">${Math.round(bd.human || 0)}%</div>
+        <div class="ring-lbl">Human<br>Written</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- METRICS -->
+<div class="card" style="margin-bottom:24px;">
+  <h2>Forensic Metrics</h2>
+  <div class="row" style="gap:24px;">
+    <div style="flex:1;">
+      <div class="metric-row"><span>Word Count</span><span style="font-weight:700;">${r.metrics?.word_count ?? '--'}</span></div>
+      <div class="metric-row"><span>Perplexity</span><span style="font-weight:700;">${(r.perplexity||0).toFixed(1)}</span></div>
+      <div class="metric-row"><span>Burstiness</span><span style="font-weight:700;">${(r.burstiness||0).toFixed(2)}</span></div>
+    </div>
+    <div style="flex:1;">
+      <div class="metric-row"><span>Entropy</span><span style="font-weight:700;">${r.metrics?.entropy ?? '--'}</span></div>
+      <div class="metric-row"><span>Lexical Stability</span><span style="font-weight:700;">${r.metrics?.stability ?? '--'}%</span></div>
+      <div class="metric-row"><span>Audit Confidence</span><span style="font-weight:700;">${r.performance?.confidence ?? '--'}%</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- DISCLAIMER -->
+<div class="disclaimer">
+  <strong>Important Notice:</strong> This certificate is generated by the Neural Lab Forensic Engine (GPT-2 perplexity + entropy + burstiness analysis). It is intended as a self-audit tool to help researchers understand the linguistic profile of their work. This report does not constitute a formal academic ruling and should not be submitted as evidence of AI-use or human-authorship in any disciplinary proceeding. The engine operates with a calibrated confidence window; all results carry inherent uncertainty.
+</div>
+
+<div class="report-footer">
+  REF: ${ref} | Verified Audit Log | Neural Lab Industrial Core
+</div>
+
+<script>window.onload = () => setTimeout(() => { window.print(); }, 400);<\/script>
+</body></html>`;
+
+        const win = window.open('', '_blank');
+        if (!win) { window.error("Allow pop-ups to download the report."); return; }
+        win.document.write(html);
+        win.document.close();
     },
 
     applyForensicHighlighting(sentences) {

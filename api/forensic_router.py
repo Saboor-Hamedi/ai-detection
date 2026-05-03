@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Request
 from pydantic import BaseModel
-from services.neural_core import engine
+from services.AIDetectionBrain import engine
 from services.pdf_manager import pdf_manager
 from services.AuthService import auth_service
 from services.PersistenceService import persistence_service
@@ -69,8 +69,19 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
     
     # Signature Window: Only run deep neural on first 15k chars for massive docs
     # The rest get a fast heuristic audit to maintain speed.
-    char_cursor = 0
+    # 1. Intensity Settings Retrieval
+    settings = db.execute(
+        text("SELECT high_intensity FROM user_settings WHERE user_id = :id"),
+        {"id": user_id}
+    ).fetchone()
+    is_high_intensity = settings.high_intensity if settings else False
+
+    # Dynamic Neural Cap: 
+    # Normal: 6k chars (Industrial Speed)
+    # High Intensity: 25k chars (Forensic Depth - Adds Latency)
+    neural_cap = 25000 if is_high_intensity else 6000
     
+    char_cursor = 0
     for frag in raw_fragments:
         if not frag: continue
         if re.match(r'[\n\s.!?]+', frag):
@@ -80,8 +91,8 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
             
         char_cursor += len(frag)
         
-        # Cap deep neural at 6,000 chars for all documents (speed vs quality tradeoff)
-        skip_n = char_cursor > 6000
+        # Deep neural analysis cap based on intensity settings
+        skip_n = char_cursor > neural_cap
         
         prob, ppl, ent, uniq, mark = engine.audit_fragment(frag, skip_neural=skip_n)
         sentences_data.append(SentenceResult(text=frag, ai_probability=prob, perplexity=ppl))
