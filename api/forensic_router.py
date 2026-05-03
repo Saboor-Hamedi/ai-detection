@@ -80,8 +80,8 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
             
         char_cursor += len(frag)
         
-        # Switch to Heuristic after 15,000 chars to prevent 100s of seconds of lag
-        skip_n = is_massive and char_cursor > 15000
+        # Cap deep neural at 6,000 chars for all documents (speed vs quality tradeoff)
+        skip_n = char_cursor > 6000
         
         prob, ppl, ent, uniq, mark = engine.audit_fragment(frag, skip_neural=skip_n)
         sentences_data.append(SentenceResult(text=frag, ai_probability=prob, perplexity=ppl))
@@ -95,8 +95,20 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
     words = re.findall(r'\w+', research_text.lower())
     global_unique = len(set(words)) / len(words) if words else 0.5
     
-    global_ai_prob = engine.get_ai_score(global_ppl, global_entropy, burstiness, global_unique)
-    
+    # Global score derived from sentence-level probabilities for consistency with highlights
+    scored_sentences = [s for s in sentences_data if s.ai_probability > 0]
+    if scored_sentences:
+        # Weight by sentence length so longer sentences count more
+        total_chars = sum(len(s.text) for s in scored_sentences)
+        global_ai_prob = sum(
+            s.ai_probability * (len(s.text) / total_chars)
+            for s in scored_sentences
+        ) if total_chars > 0 else 0.0
+    else:
+        global_ai_prob = 0.0
+
+    global_ai_prob = round(global_ai_prob, 2)
+
     classification = "Human"
     if global_ai_prob > 68: classification = "Neural (AI)"
     elif global_ai_prob > 35: classification = "Hybrid / Edited"
@@ -123,6 +135,17 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
             {"name": "Burstiness Index", "probability": max(5, 100 - (burstiness * 10)), "verdict": "Human" if burstiness > 5 else "AI"},
             {"name": "Lexical Audit", "probability": (1 - global_unique) * 100, "verdict": "AI" if global_unique < 0.4 else "Human"}
         ]
+    }
+
+    # Three-way breakdown (character-weighted) — powers the ring charts
+    all_chars = sum(len(s.text) for s in sentences_data) or 1
+    ai_exact_chars = sum(len(s.text) for s in sentences_data if s.ai_probability > 60)
+    ai_minor_chars = sum(len(s.text) for s in sentences_data if 25 < s.ai_probability <= 60)
+    human_chars    = sum(len(s.text) for s in sentences_data if s.ai_probability <= 25)
+    final_result["breakdown"] = {
+        "ai_exact": round(ai_exact_chars / all_chars * 100, 1),
+        "ai_minor": round(ai_minor_chars / all_chars * 100, 1),
+        "human":    round(human_chars    / all_chars * 100, 1),
     }
 
     # LABORATORY CONFIGURATION CHECK

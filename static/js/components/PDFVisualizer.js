@@ -70,36 +70,25 @@ const PDFVisualizer = {
     applyHighlights(layer, elements, viewport) {
         elements.forEach(el => {
             if (!el.text) return;
-            
+
             const [x0, y0, x1, y1] = el.bbox;
             const rect = viewport.convertToViewportRectangle([x0, y0, x1, y1]);
-            
+
             const left = Math.min(rect[0], rect[2]);
             const top = Math.min(rect[1], rect[3]);
             const width = Math.abs(rect[0] - rect[2]);
             const height = Math.abs(rect[1] - rect[3]);
 
+            const prob = el.ai_probability || 0;
+            if (prob <= 25) return; // Only mark suspected AI sentences
+
             const highlight = document.createElement('div');
             highlight.className = 'absolute forensic-marker transition-all duration-500';
-            
-            // Tighten the highlight to the text height
             highlight.style.left = `${left}px`;
-            highlight.style.top = `${top + 1}px`; 
+            highlight.style.top = `${top + 1}px`;
             highlight.style.width = `${width}px`;
             highlight.style.height = `${height - 2}px`;
-            
-            const prob = el.ai_probability || 0;
-            
-            if (prob > 60) {
-                highlight.style.background = '#fee2e2'; // Light Red
-                highlight.style.borderBottom = '1.5px solid #ef4444';
-            } else if (prob > 25) {
-                highlight.style.background = '#fef3c7'; // Light Amber
-                highlight.style.borderBottom = '1.5px solid #f59e0b';
-            } else {
-                highlight.style.background = '#dcfce7'; // Light Emerald
-                highlight.style.borderBottom = '1.5px solid #10b981';
-            }
+            highlight.style.borderBottom = '1.5px solid #94a3b8';
 
             layer.appendChild(highlight);
         });
@@ -117,7 +106,6 @@ const PDFVisualizer = {
         reportPage.style.minHeight = '1260px';
 
         const isAI = data.ai_probability > 60;
-        const color = isAI ? '#ef4444' : '#10b981';
 
         reportPage.innerHTML = `
             <div class="border-b-4 border-slate-900 pb-10 mb-12 flex justify-between items-end">
@@ -134,7 +122,7 @@ const PDFVisualizer = {
             <div class="flex gap-16 mb-20">
                 <div class="flex-1 p-12 border-4 border-slate-900 rounded-[40px] flex flex-col items-center justify-center text-center bg-white shadow-xl">
                     <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6">Neural Consensus</p>
-                    <div class="text-7xl font-black mb-4 tracking-tighter" style="color: ${color}">${Math.round(data.ai_probability)}%</div>
+                    <div class="text-7xl font-black mb-4 tracking-tighter text-slate-900">${Math.round(data.ai_probability)}%</div>
                     <p class="text-2xl font-black uppercase tracking-tight text-slate-900">${data.classification}</p>
                     <div class="mt-8 pt-8 border-t border-slate-100 w-full">
                          <p class="text-[11px] font-bold text-slate-500 leading-relaxed">Verification of machine-generated neural patterns found in the linguistic structure.</p>
@@ -185,7 +173,7 @@ const PDFVisualizer = {
                         ${data.consensus.map(c => `
                             <div class="flex justify-between items-center pb-2 border-b border-slate-100/50">
                                 <span class="text-[12px] font-bold text-slate-600">${c.name}</span>
-                                <span class="text-[10px] font-black uppercase px-2 py-1 rounded bg-white ${c.verdict.includes('AI') ? 'text-red-500 shadow-sm' : 'text-emerald-500 shadow-sm'}">${c.verdict}</span>
+                                <span class="text-[10px] font-black uppercase px-2 py-1 rounded bg-white text-slate-900 shadow-sm">${c.verdict}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -203,7 +191,7 @@ const PDFVisualizer = {
                         </div>
                         <div class="flex justify-between text-[12px]">
                             <span class="font-medium opacity-60">Audit Confidence</span>
-                            <span class="font-black text-emerald-400">${data.performance.confidence}%</span>
+                            <span class="font-black">${data.performance.confidence}%</span>
                         </div>
                     </div>
                 </div>

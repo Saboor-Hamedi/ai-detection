@@ -23,29 +23,67 @@
         </div>
     </div>
 
-    <!-- Triple Engine Consensus -->
+    <!-- Breakdown Rings -->
     <div
-        class="card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden">
+        class="card rounded-none lg:rounded-2xl p-8 lg:p-5 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[280px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden">
         <p
-            class="text-[8px] lg:text-[10px] font-bold text-slate-300 lg:text-slate-400 uppercase tracking-[0.2em] mb-4 lg:mb-3">
-            Consensus</p>
-        <div id="consensus-container" class="space-y-2 lg:space-y-1.5">
-            <div class="flex items-center justify-between">
-                <span class="text-[7px] lg:text-[9px] text-slate-400 lg:text-slate-500 font-bold uppercase">GPT-2
-                    Neural</span>
-                <span id="engine-a-verdict"
-                    class="px-1.5 py-0.5 lg:px-2 rounded text-[7px] lg:text-[8px] font-black uppercase bg-slate-50 lg:bg-slate-100 text-slate-300 lg:text-slate-400">---</span>
+            class="text-[8px] lg:text-[10px] font-bold text-slate-300 lg:text-slate-400 uppercase tracking-[0.2em] mb-5 lg:mb-4">
+            Breakdown
+        </p>
+        <div class="flex items-center justify-around">
+
+            <!-- Ring 1: Exact AI -->
+            <div class="flex flex-col items-center space-y-2">
+                <div class="relative w-14 h-14 lg:w-16 lg:h-16">
+                    <svg viewBox="0 0 80 80" class="w-full h-full -rotate-90">
+                        <circle cx="40" cy="40" r="30" fill="none" stroke="#f1f5f9" stroke-width="8" />
+                        <circle id="ring-ai-exact" cx="40" cy="40" r="30" fill="none" stroke="#ef4444" stroke-width="8"
+                            stroke-dasharray="188.5" stroke-dashoffset="188.5" stroke-linecap="round"
+                            class="transition-all duration-1000" />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="ring-ai-exact-val"
+                            class="text-[9px] lg:text-[10px] font-black text-slate-900">--%</span>
+                    </div>
+                </div>
+                <p class="text-[7px] font-black text-slate-400 uppercase text-center leading-tight">Exact AI<br>Match
+                </p>
             </div>
-            <div class="flex items-center justify-between">
-                <span class="text-[7px] lg:text-[9px] text-slate-400 lg:text-slate-500 font-bold uppercase">Stat
-                    Heuristic</span>
-                <span id="engine-b-verdict"
-                    class="px-1.5 py-0.5 lg:px-2 rounded text-[7px] lg:text-[8px] font-black uppercase bg-slate-50 lg:bg-slate-100 text-slate-300 lg:text-slate-400">---</span>
+
+            <!-- Ring 2: Minor AI -->
+            <div class="flex flex-col items-center space-y-2">
+                <div class="relative w-14 h-14 lg:w-16 lg:h-16">
+                    <svg viewBox="0 0 80 80" class="w-full h-full -rotate-90">
+                        <circle cx="40" cy="40" r="30" fill="none" stroke="#f1f5f9" stroke-width="8" />
+                        <circle id="ring-ai-minor" cx="40" cy="40" r="30" fill="none" stroke="#f59e0b" stroke-width="8"
+                            stroke-dasharray="188.5" stroke-dashoffset="188.5" stroke-linecap="round"
+                            class="transition-all duration-1000" />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="ring-ai-minor-val"
+                            class="text-[9px] lg:text-[10px] font-black text-slate-900">--%</span>
+                    </div>
+                </div>
+                <p class="text-[7px] font-black text-slate-400 uppercase text-center leading-tight">Minor AI<br>Changes
+                </p>
             </div>
-            <div id="consensus-status"
-                class="mt-2 p-1.5 lg:p-2 bg-slate-50 rounded text-center border border-slate-50 lg:border-slate-100">
-                <p class="text-[7px] lg:text-[8px] font-black uppercase tracking-widest text-slate-400">Verifying</p>
+
+            <!-- Ring 3: Human -->
+            <div class="flex flex-col items-center space-y-2">
+                <div class="relative w-14 h-14 lg:w-16 lg:h-16">
+                    <svg viewBox="0 0 80 80" class="w-full h-full -rotate-90">
+                        <circle cx="40" cy="40" r="30" fill="none" stroke="#f1f5f9" stroke-width="8" />
+                        <circle id="ring-human" cx="40" cy="40" r="30" fill="none" stroke="#10b981" stroke-width="8"
+                            stroke-dasharray="188.5" stroke-dashoffset="188.5" stroke-linecap="round"
+                            class="transition-all duration-1000" />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="ring-human-val" class="text-[9px] lg:text-[10px] font-black text-slate-900">--%</span>
+                    </div>
+                </div>
+                <p class="text-[7px] font-black text-slate-400 uppercase text-center leading-tight">Human<br>Written</p>
             </div>
+
         </div>
     </div>
 
@@ -77,31 +115,54 @@
 
     <!-- DNA Radar (Adaptive) -->
     <div
-        class="card rounded-none lg:rounded-2xl p-10 lg:p-6 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[200px] lg:w-full h-full lg:h-auto flex flex-col items-center justify-center overflow-hidden">
+        class="card rounded-none lg:rounded-2xl p-6 lg:p-4 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[200px] lg:w-full h-full lg:h-auto flex flex-col items-center justify-center overflow-hidden">
         <p
-            class="text-[8px] lg:text-[10px] font-bold text-slate-300 lg:text-slate-400 uppercase tracking-[0.2em] mb-3 lg:mb-4">
+            class="text-[8px] lg:text-[10px] font-bold text-slate-300 lg:text-slate-400 uppercase tracking-[0.2em] mb-2 lg:mb-3 self-start">
             Biometrics</p>
-        <div class="relative w-full aspect-square max-w-[60px] lg:max-w-[120px]">
-            <svg id="forensic-radar" viewBox="0 0 100 100" class="w-full h-full lg:p-1">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#f8fafc" stroke-width="0.5" />
-                <circle cx="50" cy="50" r="25" fill="none" stroke="#f8fafc" stroke-width="0.5" stroke-dasharray="2,2" />
-                <line x1="50" y1="10" x2="50" y2="90" stroke="#f8fafc" stroke-width="0.5" />
-                <line x1="10" y1="50" x2="90" y2="50" stroke="#f8fafc" stroke-width="0.5" />
-                <polygon id="radar-poly" points="50,50 50,50 50,50 50,50 50,50" fill="rgba(30, 41, 59, 0.05)"
-                    stroke="#cbd5e1" stroke-width="1.5" class="transition-all duration-1000" />
+        <div class="relative w-full max-w-[100px] lg:max-w-[160px] aspect-square">
+            <svg id="forensic-radar" viewBox="0 0 100 100" class="w-full h-full">
+                <!-- Outer pentagon (100%) — vertices at r=36 -->
+                <polygon points="50,14 84.3,37.1 71.4,80.9 28.6,80.9 15.7,37.1" fill="none" stroke="#f1f5f9"
+                    stroke-width="1" />
+                <!-- Inner pentagon (50%) — vertices at r=18 -->
+                <polygon points="50,32 67.1,43.5 60.7,65.5 39.3,65.5 32.9,43.5" fill="none" stroke="#f1f5f9"
+                    stroke-width="0.6" stroke-dasharray="2,2" />
+                <!-- Axis lines: center to each outer vertex -->
+                <line x1="50" y1="50" x2="50" y2="14" stroke="#f1f5f9" stroke-width="0.6" />
+                <line x1="50" y1="50" x2="84.3" y2="37.1" stroke="#f1f5f9" stroke-width="0.6" />
+                <line x1="50" y1="50" x2="71.4" y2="80.9" stroke="#f1f5f9" stroke-width="0.6" />
+                <line x1="50" y1="50" x2="28.6" y2="80.9" stroke="#f1f5f9" stroke-width="0.6" />
+                <line x1="50" y1="50" x2="15.7" y2="37.1" stroke="#f1f5f9" stroke-width="0.6" />
+                <!-- Data polygon -->
+                <polygon id="radar-poly" points="50,50 50,50 50,50 50,50 50,50" fill="rgba(15, 23, 42, 0.07)"
+                    stroke="#94a3b8" stroke-width="1.5" class="transition-all duration-700" />
             </svg>
+            <!-- Axis Labels -->
             <div
-                class="absolute -top-1 lg:-top-2 left-1/2 -translate-x-1/2 text-[7px] lg:text-[8px] font-black uppercase text-slate-400">
-                Diversity</div>
+                class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 text-[6px] font-black uppercase text-slate-400 whitespace-nowrap">
+                Lexical</div>
             <div
-                class="absolute -bottom-1 lg:-bottom-2 left-1/2 -translate-x-1/2 text-[7px] lg:text-[8px] font-black uppercase text-slate-400">
-                Complexity</div>
+                class="absolute top-[30%] right-0 translate-x-1 text-[6px] font-black uppercase text-slate-400 whitespace-nowrap">
+                Stable</div>
             <div
-                class="absolute -right-2 lg:-right-3 top-1/2 -translate-y-1/2 text-[7px] lg:text-[8px] font-black uppercase text-slate-400 rotate-90 origin-center translate-x-1">
-                Stability</div>
+                class="absolute bottom-[8%] right-[5%] text-[6px] font-black uppercase text-slate-400 whitespace-nowrap">
+                Predict</div>
             <div
-                class="absolute -left-2 lg:-left-3 top-1/2 -translate-y-1/2 text-[7px] lg:text-[8px] font-black uppercase text-slate-400 -rotate-90 origin-center -translate-x-1">
+                class="absolute bottom-[8%] left-[5%] text-[6px] font-black uppercase text-slate-400 whitespace-nowrap">
                 Rhythm</div>
+            <div
+                class="absolute top-[30%] left-0 -translate-x-1 text-[6px] font-black uppercase text-slate-400 whitespace-nowrap">
+                Syntax</div>
+        </div>
+    </div>
+
+    <!-- Highlight Legend -->
+    <div
+        class="card rounded-none lg:rounded-2xl px-5 py-3 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[200px] lg:w-full lg:h-auto flex items-center overflow-hidden">
+        <div class="flex items-center space-x-2">
+            <div class="w-2.5 h-2.5 rounded-sm flex-shrink-0" style="background-color: rgba(245, 158, 11, 0.5);"></div>
+            <p class="text-[8px] font-bold text-slate-400 uppercase tracking-wide leading-tight">Sentences likely
+                AI-generated</p>
         </div>
     </div>
 

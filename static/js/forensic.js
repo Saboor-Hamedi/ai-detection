@@ -212,22 +212,26 @@ const ForensicEngine = {
         const highlighter = document.getElementById('highlighter-layer');
         let html = "";
         sentences.forEach(s => {
-            let cls = "highlight-human";
-            if (s.ai_probability > 60) cls = "highlight-ai-high";
-            else if (s.ai_probability > 25) cls = "highlight-ai-med";
-            html += `<span class="${cls}" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
+            if (s.ai_probability > 60) {
+                html += `<span class="highlight-ai-high" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
+            } else if (s.ai_probability > 25) {
+                html += `<span class="highlight-ai-med" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
+            } else {
+                // Human — plain text, no highlight
+                html += s.text;
+            }
         });
         highlighter.innerHTML = html;
     },
 
     updateUI(res) {
-        document.getElementById('ai-prob').innerText = (res.ai_probability || 0).toFixed(2) + '%';
-        document.getElementById('human-prob').innerText = (res.human_probability || 0).toFixed(2) + '%';
+        document.getElementById('ai-prob').innerText = Math.round(res.ai_probability || 0) + '%';
+        document.getElementById('human-prob').innerText = Math.round(res.human_probability || 0) + '%';
         document.getElementById('ai-bar').style.width = res.ai_probability + '%';
         document.getElementById('human-bar').style.width = res.human_probability + '%';
         
         this.updateRadarChart(res.radar);
-        this.updateConsensus(res.consensus);
+        this.updateConsensus(res.breakdown);
 
         // Update Matrix
         const map = { 'f1-val': 'f1', 'precision-val': 'precision', 'recall-val': 'recall', 'conf-val': 'confidence' };
@@ -258,28 +262,45 @@ const ForensicEngine = {
         }
     },
 
-    updateConsensus(engines) {
-        const ids = ['engine-a-verdict', 'engine-b-verdict', 'engine-c-verdict'];
-        engines.forEach((eng, i) => {
-            const el = document.getElementById(ids[i]);
-            if (el) {
-                el.innerText = eng.verdict;
-                el.className = `px-1.5 py-0.5 lg:px-2 rounded text-[7px] lg:text-[8px] font-black uppercase ${eng.verdict.includes('AI') ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`;
-            }
+    updateConsensus(breakdown) {
+        if (!breakdown) return;
+        const C = 188.5; // circumference for r=30
+        const rings = [
+            { ringId: 'ring-ai-exact', valId: 'ring-ai-exact-val', pct: breakdown.ai_exact ?? 0 },
+            { ringId: 'ring-ai-minor', valId: 'ring-ai-minor-val', pct: breakdown.ai_minor ?? 0 },
+            { ringId: 'ring-human',    valId: 'ring-human-val',    pct: breakdown.human    ?? 0 },
+        ];
+        rings.forEach(r => {
+            const ring = document.getElementById(r.ringId);
+            const val  = document.getElementById(r.valId);
+            if (ring) ring.style.strokeDashoffset = (C * (1 - r.pct / 100)).toFixed(2);
+            if (val)  val.textContent = Math.round(r.pct) + '%';
         });
     },
 
     updateRadarChart(data) {
         const poly = document.getElementById('radar-poly');
         if (!poly) return;
-        const scale = 0.4;
-        const points = [
-            { x: 50, y: 50 - (data.lexical_diversity * scale) },
-            { x: 50 + (data.neural_stability * scale), y: 50 },
-            { x: 50 + (data.predictability * scale * 0.7), y: 50 + (data.predictability * scale * 0.7) },
-            { x: 50 - (data.rhythm_variance * scale * 0.7), y: 50 + (data.rhythm_variance * scale * 0.7) },
-            { x: 50 - (data.syntax_complexity * scale), y: 50 }
+
+        const cx = 50, cy = 50, maxR = 36;
+        // 5 metrics mapped to 5 axes at 72° intervals, starting from top (-90°)
+        const metrics = [
+            Math.min(100, Math.max(0, data.lexical_diversity   ?? 0)),
+            Math.min(100, Math.max(0, data.neural_stability    ?? 0)),
+            Math.min(100, Math.max(0, data.predictability      ?? 0)),
+            Math.min(100, Math.max(0, data.rhythm_variance     ?? 0)),
+            Math.min(100, Math.max(0, data.syntax_complexity   ?? 0)),
         ];
+
+        const points = metrics.map((val, i) => {
+            const angle = -Math.PI / 2 + (2 * Math.PI * i / 5);
+            const r = (val / 100) * maxR;
+            return {
+                x: (cx + r * Math.cos(angle)).toFixed(2),
+                y: (cy + r * Math.sin(angle)).toFixed(2)
+            };
+        });
+
         poly.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
     },
 
