@@ -1,0 +1,60 @@
+<!-- NEURAL LAB | INDUSTRIAL AUTH PORTAL -->
+<div id="auth-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[200] hidden p-6">
+    <div class="bg-white w-full max-w-[420px] rounded-[32px] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.3)] overflow-hidden transform transition-all duration-300 scale-95 opacity-0 flex flex-col" id="auth-card">
+        
+        <!-- Header (Ultra-Compact) -->
+        <div class="px-8 pt-8 pb-4 flex items-center space-x-6">
+            <div class="w-12 h-12 bg-slate-900 rounded-2xl flex-shrink-0 flex items-center justify-center shadow-xl rotate-3">
+                <div class="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+            </div>
+            <div class="text-left">
+                <h2 id="auth-title" class="text-lg font-black text-slate-900 uppercase tracking-tight">Forensic Access</h2>
+                <p id="auth-subtitle" class="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest leading-none">Identify to authorize neural scans.</p>
+            </div>
+        </div>
+
+        <!-- Form Area (Low Profile) -->
+        <div class="px-8 pb-8 space-y-3.5">
+            <div id="register-fields" class="hidden">
+                <div class="space-y-1">
+                    <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                    <input type="text" id="reg-name" placeholder="John Doe" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-colors">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3.5">
+                <div class="space-y-1">
+                    <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Research Email</label>
+                    <input type="email" id="auth-email" placeholder="name@lab.com" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-colors">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">Laboratory Key</label>
+                    <input type="password" id="auth-password" placeholder="••••••••" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[11px] font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-colors">
+                </div>
+            </div>
+
+            <div id="auth-error" class="hidden py-2 px-4 bg-red-50 text-red-500 text-[9px] font-black rounded-xl text-center uppercase tracking-tight"></div>
+
+            <div class="pt-2 flex items-center space-x-4">
+                <button onclick="submitAuth()" id="auth-submit-btn" class="flex-1 py-3.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.3em] shadow-lg hover:bg-slate-800 transition-all">
+                    Authorize
+                </button>
+                <button onclick="window.closeAuth()" class="px-6 py-3.5 border border-slate-100 text-slate-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
+                    Cancel
+                </button>
+            </div>
+
+            <div class="pt-2 text-center">
+                <button onclick="toggleAuthMode()" id="auth-mode-toggle" class="text-[9px] font-black text-slate-400 hover:text-slate-900 uppercase tracking-widest transition-colors">
+                    New Researcher? <span class="text-slate-900 border-b border-slate-900">Register</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer Baseline -->
+        <div class="h-10 bg-slate-50 border-t border-slate-100 flex items-center justify-center">
+            <p class="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em]">Neural Lab | Secure v3.0</p>
+        </div>
+    </div>
+</div>
