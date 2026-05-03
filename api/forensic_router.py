@@ -124,8 +124,17 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
         ]
     }
 
-    # AUTOMATIC ARCHIVING
-    persistence_service.save_audit(db, user_id, text, final_result)
+    # LABORATORY CONFIGURATION CHECK
+    settings = db.execute(
+        text("SELECT auto_archive FROM user_settings WHERE user_id = :id"),
+        {"id": user_id}
+    ).fetchone()
+    
+    should_archive = settings.auto_archive if settings else True
+
+    # AUTOMATIC ARCHIVING (Conditional)
+    if should_archive:
+        persistence_service.save_audit(db, user_id, text, final_result)
     
     return final_result
 

@@ -26,6 +26,10 @@ class ChangePassword(BaseModel):
 class UpdateProfile(BaseModel):
     full_name: str
 
+class UserSettingsUpdate(BaseModel):
+    high_intensity: bool
+    auto_archive: bool
+
 @router.post("/register")
 async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     # Check for existing user
@@ -110,3 +114,24 @@ async def change_password(data: ChangePassword, db: Session = Depends(get_db), t
     db.execute(text("UPDATE users SET password_hash = :pwd WHERE id = :id"), {"pwd": new_hash, "id": user_id})
     db.commit()
     return {"status": "success", "message": "Password changed"}
+
+@router.get("/settings")
+async def get_settings(db: Session = Depends(get_db), token: str = Depends(verify_session)):
+    user_id = auth_service.validate_token(token)
+    settings = db.execute(
+        text("SELECT high_intensity, auto_archive FROM user_settings WHERE user_id = :id"),
+        {"id": user_id}
+    ).fetchone()
+    if not settings:
+        return {"high_intensity": False, "auto_archive": True}
+    return {"high_intensity": settings.high_intensity, "auto_archive": settings.auto_archive}
+
+@router.post("/settings")
+async def update_settings_api(data: UserSettingsUpdate, db: Session = Depends(get_db), token: str = Depends(verify_session)):
+    user_id = auth_service.validate_token(token)
+    db.execute(
+        text("UPDATE user_settings SET high_intensity = :hi, auto_archive = :aa WHERE user_id = :id"),
+        {"hi": data.high_intensity, "aa": data.auto_archive, "id": user_id}
+    )
+    db.commit()
+    return {"status": "success", "message": "Laboratory settings synchronized"}

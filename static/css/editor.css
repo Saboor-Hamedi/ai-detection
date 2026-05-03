@@ -70,6 +70,82 @@
 }
 .btn-execute:disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
 
+/* INDUSTRIAL LAYOUT SYSTEM */
+.workspace-root {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    width: 100%;
+    background-color: #ffffff;
+}
+
+.workspace-root ::selection {
+    background: rgba(15, 23, 42, 0.15);
+    color: inherit;
+}
+
+/* RESULTS PANE */
+.results-pane {
+    transition: all 0.3s ease;
+}
+
+/* COMPONENT: ACTION BUTTONS */
+#placeholder-actions {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: flex;
+    gap: 0.6rem;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    background: white;
+    border: 1.5px solid #f1f5f9;
+    border-radius: 0.7rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* NEURAL LOADING TELEMETRY */
+#loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* RESPONSIVE LABORATORY OVERRIDES */
+@media (max-width: 1023px) {
+    #sidebar {
+        width: 55px !important;
+        transform: translateX(0) !important;
+    }
+    #sidebar .sidebar-label {
+        display: none !important;
+    }
+    #sidebar.mobile-open {
+        width: 14rem !important;
+        z-index: 1000;
+    }
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
