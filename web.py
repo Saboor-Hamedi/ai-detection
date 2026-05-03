@@ -49,24 +49,40 @@ async def login_page():
     with open(os.path.join(TEMPLATES_DIR, "login.html"), "r", encoding="utf-8") as f:
         return f.read()
 
+# Global Component Fetcher
+def get_component(name):
+    path = os.path.join(TEMPLATES_DIR, f"{name}.html")
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request):
+    token = request.cookies.get("access_token")
+    if not token or not auth_service.validate_token(token):
+        return RedirectResponse(url="/login")
+    
+    try:
+        sidebar = get_component("sidebar")
+        dropdown = get_component("dropdown")
+        header = get_component("header").replace("{{DROPDOWN}}", dropdown)
+        settings = get_component("setting")
+        
+        return settings.replace("{{SIDEBAR}}", sidebar).replace("{{HEADER}}", header)
+    except Exception as e:
+        return HTMLResponse(f"Settings Load Error: {str(e)}", status_code=500)
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    """
-    Protected Laboratory Dashboard. Redirects to /login if unauthorized.
-    """
     token = request.cookies.get("access_token")
     if not token or not auth_service.validate_token(token):
         return RedirectResponse(url="/login")
 
     try:
-        with open(os.path.join(TEMPLATES_DIR, "index.html"), "r", encoding="utf-8") as f:
-            index = f.read()
-        with open(os.path.join(TEMPLATES_DIR, "sidebar.html"), "r", encoding="utf-8") as f:
-            sidebar = f.read()
-        with open(os.path.join(TEMPLATES_DIR, "header.html"), "r", encoding="utf-8") as f:
-            header = f.read()
-        with open(os.path.join(TEMPLATES_DIR, "results.html"), "r", encoding="utf-8") as f:
-            results = f.read()
+        index = get_component("index")
+        sidebar = get_component("sidebar")
+        dropdown = get_component("dropdown")
+        header = get_component("header").replace("{{DROPDOWN}}", dropdown)
+        results = get_component("results")
         
         # Assembly
         dashboard = index.replace("{{SIDEBAR}}", sidebar)\
@@ -77,5 +93,4 @@ async def root(request: Request):
         return HTMLResponse(f"Initialization Error: {str(e)}", status_code=500)
 
 if __name__ == "__main__":
-    print("[SYSTEM] LAUNCHING NEURAL LAB INDUSTRIAL SERVER...")
     uvicorn.run(app, host="127.0.0.1", port=8000)
