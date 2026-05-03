@@ -6,6 +6,7 @@ from services.AuthService import auth_service
 from services.PersistenceService import persistence_service
 from services.database import get_db
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import re
 
 router = APIRouter(prefix="/api/v1")
@@ -50,18 +51,18 @@ async def upload_pdf(file: UploadFile = File(...), _=Depends(verify_session)):
 @router.post("/detect")
 async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), token: str = Depends(verify_session)):
     user_id = auth_service.validate_token(token)
-    text = request.text
-    if not text: raise HTTPException(status_code=400, detail="Empty text")
+    research_text = request.text
+    if not research_text: raise HTTPException(status_code=400, detail="Empty text")
     
     # NEURAL TURBO-SAMPLING: 
     # For massive documents (80k+), we audit paragraphs to avoid 1000s of model calls.
-    is_massive = len(text) > 30000
+    is_massive = len(research_text) > 30000
     if is_massive:
         # Split by double-newlines (paragraphs)
-        raw_fragments = re.split(r'(\n\n+)', text)
+        raw_fragments = re.split(r'(\n\n+)', research_text)
     else:
         # Standard sentence/line splitting
-        raw_fragments = re.split(r'(\n+|[.!?]\s+)', text)
+        raw_fragments = re.split(r'(\n+|[.!?]\s+)', research_text)
     
     sentences_data = []
     all_ppls = []
@@ -88,10 +89,10 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
 
     # Global Calculations (Deep Forensic)
     # We audit a large sample for the global score
-    global_ppl, global_entropy = engine.calculate_metrics(text[:8000])
+    global_ppl, global_entropy = engine.calculate_metrics(research_text[:8000])
     
     burstiness = engine.get_burstiness(all_ppls)
-    words = re.findall(r'\w+', text.lower())
+    words = re.findall(r'\w+', research_text.lower())
     global_unique = len(set(words)) / len(words) if words else 0.5
     
     global_ai_prob = engine.get_ai_score(global_ppl, global_entropy, burstiness, global_unique)
@@ -107,7 +108,7 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
         "perplexity": global_ppl,
         "burstiness": round(burstiness, 2),
         "classification": classification,
-        "metrics": {"word_count": len(text.split()), "entropy": round(global_entropy, 2), "stability": round(100 - (global_unique*100), 1)},
+        "metrics": {"word_count": len(research_text.split()), "entropy": round(global_entropy, 2), "stability": round(100 - (global_unique*100), 1)},
         "performance": {"f1": 95.8, "precision": 95.2, "recall": 96.1, "confidence": round(100 - (global_ppl/10), 1)},
         "sentences": sentences_data,
         "radar": {
@@ -134,7 +135,7 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
 
     # AUTOMATIC ARCHIVING (Conditional)
     if should_archive:
-        persistence_service.save_audit(db, user_id, text, final_result)
+        persistence_service.save_audit(db, user_id, research_text, final_result)
     
     return final_result
 

@@ -10,9 +10,20 @@ const ForensicEngine = {
     visualData: null,
 
     init() {
+        const textarea = document.getElementById('input-text');
+        if (!textarea) {
+            console.log("[SYSTEM] Forensic Engine entering Passive Mode: Editor not detected.");
+            return;
+        }
         this.bindEvents();
         this.renderHistory();
         this.checkPlaceholder();
+
+        // Hash-Aware Initialization
+        const hash = window.location.hash.replace('#', '');
+        if (hash === 'history' || hash === 'editor' || hash === 'visual-pdf') {
+            this.switchView(hash);
+        }
     },
 
     bindEvents() {
@@ -21,7 +32,9 @@ const ForensicEngine = {
         if (!textarea || !highlighter) return;
 
         textarea.addEventListener('input', (e) => {
-            document.getElementById('char-count').innerText = `${e.target.value.length} Characters`;
+            const charCount = document.getElementById('char-count');
+            if (charCount) charCount.innerText = `${e.target.value.length} Characters`;
+            
             if (!highlighter.innerHTML.includes('<span')) {
                 highlighter.innerText = e.target.value;
             }
@@ -64,14 +77,17 @@ const ForensicEngine = {
                 if (file && file.type === 'application/pdf') {
                     this.uploadFile(file);
                 } else {
-                    alert("Only PDF files are supported for forensic ingestion.");
+                    window.error("Only PDF files are supported for forensic ingestion.");
                 }
             });
         }
     },
 
     checkPlaceholder() {
-        const text = document.getElementById('input-text').value;
+        const textarea = document.getElementById('input-text');
+        if (!textarea) return;
+
+        const text = textarea.value;
         const actions = document.getElementById('placeholder-actions');
         if (actions) {
             actions.classList.toggle('hidden', text.length > 0);
@@ -83,7 +99,10 @@ const ForensicEngine = {
         const textarea = document.getElementById('input-text');
         const visualTab = document.getElementById('tab-visual-pdf');
         
-        if (overlay) overlay.classList.remove('hidden');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        }
         this.currentPDFFile = file;
 
         const formData = new FormData();
@@ -106,13 +125,16 @@ const ForensicEngine = {
                     if (visualTab) visualTab.classList.remove('hidden');
                 }
                 
-                alert("PDF Visual Audit Ready.");
+                window.success("PDF Visual Audit Ready.");
             }
         } catch (err) {
             console.error(err);
-            alert("Error extracting PDF metadata.");
+            window.error("Error extracting PDF metadata.");
         } finally {
-            if (overlay) overlay.classList.add('hidden');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
         }
     },
 
@@ -126,9 +148,12 @@ const ForensicEngine = {
     },
 
     async runAnalysis() {
-        const text = document.getElementById('input-text').value;
+        const textarea = document.getElementById('input-text');
+        if (!textarea) return;
+
+        const text = textarea.value;
         if (!text || text.length < 20) {
-            alert("Forensic stability requires at least 20 characters.");
+            window.error("Forensic stability requires at least 20 characters.");
             return;
         }
 
@@ -138,7 +163,10 @@ const ForensicEngine = {
 
         btn.disabled = true;
         if (cancelBtn) cancelBtn.classList.remove('hidden');
-        if (overlay) overlay.classList.remove('hidden');
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        }
 
         this.abortController = new AbortController();
 
@@ -161,12 +189,15 @@ const ForensicEngine = {
                 console.log("Analysis cancelled.");
             } else {
                 console.error(err);
-                alert("Neural Core Timeout.");
+                window.error("Neural Core Timeout.");
             }
         } finally {
             btn.disabled = false;
             if (cancelBtn) cancelBtn.classList.add('hidden');
-            if (overlay) overlay.classList.add('hidden');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('flex');
+            }
             this.abortController = null;
         }
     },
@@ -403,7 +434,6 @@ const ForensicEngine = {
 
 window.runAnalysis = () => ForensicEngine.runAnalysis();
 window.cancelAnalysis = () => ForensicEngine.cancelAnalysis();
-window.switchView = (v) => ForensicEngine.switchView(v);
 window.clearHistory = () => ForensicEngine.clearHistory();
 window.ForensicEngine = ForensicEngine;
 

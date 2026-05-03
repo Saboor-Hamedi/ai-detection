@@ -46,18 +46,38 @@ app.add_middleware(
 )
 
 # Registering Professional API Routers
-app.include_router(forensic_router)
+# (Included above during initialization)
 
-@app.get("/login", response_class=HTMLResponse)
-async def login_page():
-    with open(os.path.join(TEMPLATES_DIR, "login.html"), "r", encoding="utf-8") as f:
-        return f.read()
-
-# Global Component Fetcher
+# --- ASSEMBLY ENGINE ---
 def get_component(name):
     path = os.path.join(TEMPLATES_DIR, f"{name}.html")
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
+
+def assemble_page(content_name, context={}):
+    """Industrial 3-Tier Assembly Engine"""
+    base = get_component("base")
+    sidebar = get_component("sidebar")
+    dropdown = get_component("dropdown")
+    header = get_component("header").replace("{{DROPDOWN}}", dropdown)
+    content = get_component(content_name)
+    
+    # Inject Context Variables
+    for key, val in context.items():
+        content = content.replace(f"{{{{{key}}}}}", str(val))
+    
+    return base.replace("{{SIDEBAR}}", sidebar)\
+               .replace("{{HEADER}}", header)\
+               .replace("{{CONTENT}}", content)
+
+def assemble_auth_page(content_name):
+    base = get_component("auth_base")
+    content = get_component(content_name)
+    return base.replace("{{CONTENT}}", content)
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page():
+    return assemble_auth_page("login")
 
 @app.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request, db: Session = Depends(get_db)):
@@ -66,21 +86,11 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
     if not user_id:
         return RedirectResponse(url="/login")
     
-    try:
-        user = db.execute(text("SELECT email, full_name FROM users WHERE id = :id"), {"id": user_id}).fetchone()
-        
-        sidebar = get_component("sidebar")
-        dropdown = get_component("dropdown")
-        header = get_component("header").replace("{{DROPDOWN}}", dropdown)
-        settings = get_component("setting")
-        
-        # Replace Dynamic User Data
-        settings = settings.replace("{{USER_NAME}}", user.full_name or "Researcher")\
-                           .replace("{{USER_EMAIL}}", user.email)
-        
-        return settings.replace("{{SIDEBAR}}", sidebar).replace("{{HEADER}}", header)
-    except Exception as e:
-        return HTMLResponse(f"Settings Load Error: {str(e)}", status_code=500)
+    user = db.execute(text("SELECT email, full_name FROM users WHERE id = :id"), {"id": user_id}).fetchone()
+    return assemble_page("setting", {
+        "USER_NAME": user.full_name or "Researcher",
+        "USER_EMAIL": user.email
+    })
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
@@ -88,20 +98,18 @@ async def root(request: Request):
     if not token or not auth_service.validate_token(token):
         return RedirectResponse(url="/login")
 
-    try:
-        index = get_component("index")
-        sidebar = get_component("sidebar")
-        dropdown = get_component("dropdown")
-        header = get_component("header").replace("{{DROPDOWN}}", dropdown)
-        results = get_component("results")
-        
-        # Assembly
-        dashboard = index.replace("{{SIDEBAR}}", sidebar)\
-                         .replace("{{HEADER}}", header)\
-                         .replace("{{RESULTS}}", results)
-        return dashboard
-    except Exception as e:
-        return HTMLResponse(f"Initialization Error: {str(e)}", status_code=500)
+    # The index module will contain the results placeholder
+    index_content = get_component("index").replace("{{RESULTS}}", get_component("results"))
+    
+    # Custom assembly for root since index has unique nesting
+    base = get_component("base")
+    sidebar = get_component("sidebar")
+    dropdown = get_component("dropdown")
+    header = get_component("header").replace("{{DROPDOWN}}", dropdown)
+    
+    return base.replace("{{SIDEBAR}}", sidebar)\
+               .replace("{{HEADER}}", header)\
+               .replace("{{CONTENT}}", index_content)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
