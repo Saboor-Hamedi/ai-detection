@@ -4,292 +4,292 @@
  */
 
 const ForensicEngine = {
-    history: [],
-    abortController: null,
-    currentPDFFile: null,
-    visualData: null,
-    lastResult: null,
+  history: [],
+  abortController: null,
+  currentPDFFile: null,
+  visualData: null,
+  lastResult: null,
 
-    init() {
-        const textarea = document.getElementById('input-text');
-        if (!textarea) {
-            console.log("[SYSTEM] Forensic Engine entering Passive Mode: Editor not detected.");
-            return;
+  init() {
+    const textarea = document.getElementById("input-text");
+    if (!textarea) {
+      console.log(
+        "[SYSTEM] Forensic Engine entering Passive Mode: Editor not detected.",
+      );
+      return;
+    }
+    this.bindEvents();
+    this.renderHistory();
+    this.checkPlaceholder();
+  },
+
+  bindEvents() {
+    const textarea = document.getElementById("input-text");
+    const highlighter = document.getElementById("highlighter-layer");
+    if (!textarea || !highlighter) return;
+
+    textarea.addEventListener("input", (e) => {
+      this.updateTelemetry(e.target.value);
+
+      if (!highlighter.innerHTML.includes("<span")) {
+        highlighter.innerText = e.target.value;
+      }
+      this.syncScroll();
+      this.checkPlaceholder();
+    });
+
+    textarea.addEventListener("scroll", () => {
+      this.syncScroll();
+    });
+
+    this.bindPdfAndDragEvents();
+  },
+
+  bindPdfAndDragEvents() {
+    // File Input Handler
+    const fileInput = document.getElementById("file-input");
+    if (fileInput) {
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          this.uploadFile(file);
+          fileInput.value = ""; // Reset to allow re-upload of same file
         }
-        this.bindEvents();
-        this.renderHistory();
-        this.checkPlaceholder();
+      });
+    }
 
-        // Hash-Aware Initialization
-        const hash = window.location.hash.replace('#', '');
-        if (hash === 'history' || hash === 'editor' || hash === 'visual-pdf') {
-            this.switchView(hash);
+    // DRAG AND DROP PDF SUPPORT
+    const wrapper = document.querySelector(".editor-wrapper");
+    if (wrapper) {
+      wrapper.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        wrapper.style.borderColor = "#10b981";
+        wrapper.style.background = "#f0fdf4";
+      });
+
+      wrapper.addEventListener("dragleave", () => {
+        wrapper.style.borderColor = "transparent";
+        wrapper.style.background = "#ffffff";
+      });
+
+      wrapper.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        wrapper.style.borderColor = "transparent";
+        wrapper.style.background = "#ffffff";
+
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === "application/pdf") {
+          this.uploadFile(file);
+        } else {
+          window.error("Only PDF files are supported for forensic ingestion.");
         }
-    },
+      });
+    }
+  },
 
-    bindEvents() {
-        const textarea = document.getElementById('input-text');
-        const highlighter = document.getElementById('highlighter-layer');
-        if (!textarea || !highlighter) return;
+  clearEditor() {
+    const textarea = document.getElementById("input-text");
+    const highlighter = document.getElementById("highlighter-layer");
+    if (textarea) {
+      textarea.value = "";
+      this.updateTelemetry("");
+      this.checkPlaceholder();
+    }
+    if (highlighter) {
+      highlighter.innerHTML = "";
+    }
+    this.lastResult = null;
+    const reportBtn = document.getElementById("report-btn");
+    if (reportBtn) reportBtn.classList.add("hidden");
+  },
 
-        textarea.addEventListener('input', (e) => {
-            this.updateTelemetry(e.target.value);
-            
-            if (!highlighter.innerHTML.includes('<span')) {
-                highlighter.innerText = e.target.value;
-            }
-            this.syncScroll();
-            this.checkPlaceholder();
-        });
+  updateTelemetry(text) {
+    const charCount = document.getElementById("char-count");
+    const wordCount = document.getElementById("word-count");
+    if (charCount) charCount.innerText = `${text.length} Char`;
+    if (wordCount) {
+      const words = text
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 0).length;
+      wordCount.innerText = `${words} Word`;
+    }
+  },
 
-        textarea.addEventListener('scroll', () => {
-            this.syncScroll();
-        });
+  checkPlaceholder() {
+    const textarea = document.getElementById("input-text");
+    if (!textarea) return;
 
-        this.bindPdfAndDragEvents();
-    },
+    const text = textarea.value;
+    const actions = document.getElementById("placeholder-actions");
+    if (actions) {
+      actions.classList.toggle("hidden", text.length > 0);
+    }
+  },
 
-    bindPdfAndDragEvents() {
+  async pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const textarea = document.getElementById("input-text");
+      if (textarea && text) {
+        textarea.value = text;
+        textarea.dispatchEvent(new Event("input"));
+        window.success("Clipboard Ingested.");
+      } else if (!text) {
+        window.error("Clipboard is empty.");
+      }
+    } catch (err) {
+      window.error("Clipboard access denied. Use Ctrl+V.");
+    }
+  },
 
-        // File Input Handler
-        const fileInput = document.getElementById('file-input');
-        if (fileInput) {
-            fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    this.uploadFile(file);
-                    fileInput.value = ''; // Reset to allow re-upload of same file
-                }
-            });
-        }
+  async uploadFile(file) {
+    const overlay = document.getElementById("loading-overlay");
+    const textarea = document.getElementById("input-text");
+    const visualTab = document.getElementById("tab-visual-pdf");
+    const clearBtn = document.getElementById("clear-btn");
+    const cancelBtn = document.getElementById("cancel-btn");
 
-        // DRAG AND DROP PDF SUPPORT
-        const wrapper = document.querySelector('.editor-wrapper');
-        if (wrapper) {
-            wrapper.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                wrapper.style.borderColor = '#10b981';
-                wrapper.style.background = '#f0fdf4';
-            });
+    if (overlay) {
+      overlay.classList.remove("hidden");
+      overlay.classList.add("flex");
+    }
+    if (cancelBtn) cancelBtn.classList.remove("hidden");
+    if (clearBtn) clearBtn.classList.add("hidden");
 
-            wrapper.addEventListener('dragleave', () => {
-                wrapper.style.borderColor = 'transparent';
-                wrapper.style.background = '#ffffff';
-            });
+    this.abortController = new AbortController();
+    this.currentPDFFile = file;
 
-            wrapper.addEventListener('drop', async (e) => {
-                e.preventDefault();
-                wrapper.style.borderColor = 'transparent';
-                wrapper.style.background = '#ffffff';
-                
-                const file = e.dataTransfer.files[0];
-                if (file && file.type === 'application/pdf') {
-                    this.uploadFile(file);
-                } else {
-                    window.error("Only PDF files are supported for forensic ingestion.");
-                }
-            });
-        }
-    },
+    const formData = new FormData();
+    formData.append("file", file);
 
-    clearEditor() {
-        const textarea = document.getElementById('input-text');
-        const highlighter = document.getElementById('highlighter-layer');
-        if (textarea) {
-            textarea.value = '';
-            this.updateTelemetry('');
-            this.checkPlaceholder();
-        }
-        if (highlighter) {
-            highlighter.innerHTML = '';
-        }
-        this.lastResult = null;
-        const reportBtn = document.getElementById('report-btn');
-        if (reportBtn) reportBtn.classList.add('hidden');
-    },
+    try {
+      const res = await fetch("/api/v1/upload", {
+        method: "POST",
+        body: formData,
+        signal: this.abortController.signal,
+      }).then((r) => r.json());
 
-    updateTelemetry(text) {
-        const charCount = document.getElementById('char-count');
-        const wordCount = document.getElementById('word-count');
-        if (charCount) charCount.innerText = `${text.length} Char`;
-        if (wordCount) {
-            const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-            wordCount.innerText = `${words} Word`;
-        }
-    },
+      if (res.text) {
+        textarea.value = res.text;
+        textarea.dispatchEvent(new Event("input"));
 
-    checkPlaceholder() {
-        const textarea = document.getElementById('input-text');
-        if (!textarea) return;
-
-        const text = textarea.value;
-        const actions = document.getElementById('placeholder-actions');
-        if (actions) {
-            actions.classList.toggle('hidden', text.length > 0);
-        }
-    },
-
-    async pasteFromClipboard() {
-        try {
-            const text = await navigator.clipboard.readText();
-            const textarea = document.getElementById('input-text');
-            if (textarea && text) {
-                textarea.value = text;
-                textarea.dispatchEvent(new Event('input'));
-                window.success("Clipboard Ingested.");
-            } else if (!text) {
-                window.error("Clipboard is empty.");
-            }
-        } catch (err) {
-            window.error("Clipboard access denied. Use Ctrl+V.");
-        }
-    },
-
-    async uploadFile(file) {
-        const overlay = document.getElementById('loading-overlay');
-        const textarea = document.getElementById('input-text');
-        const visualTab = document.getElementById('tab-visual-pdf');
-        const clearBtn = document.getElementById('clear-btn');
-        const cancelBtn = document.getElementById('cancel-btn');
-        
-        if (overlay) {
-            overlay.classList.remove('hidden');
-            overlay.classList.add('flex');
-        }
-        if (cancelBtn) cancelBtn.classList.remove('hidden');
-        if (clearBtn) clearBtn.classList.add('hidden');
-
-        this.abortController = new AbortController();
-        this.currentPDFFile = file;
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const res = await fetch('/api/v1/upload', {
-                method: 'POST',
-                body: formData,
-                signal: this.abortController.signal
-            }).then(r => r.json());
-
-            if (res.text) {
-                textarea.value = res.text;
-                textarea.dispatchEvent(new Event('input'));
-                
-                // Load High-Fidelity Visualizer
-                if (res.visual_data) {
-                    this.visualData = res.visual_data;
-                    await PDFVisualizer.init(file, res.visual_data);
-                    if (visualTab) visualTab.classList.remove('hidden');
-                }
-                
-                window.success("PDF Visual Audit Ready.");
-            }
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                console.log("Extraction cancelled.");
-            } else {
-                console.error(err);
-                window.error("Error extracting PDF metadata.");
-            }
-        } finally {
-            if (overlay) {
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
-            }
-            if (cancelBtn) cancelBtn.classList.add('hidden');
-            if (clearBtn) clearBtn.classList.remove('hidden');
-            this.abortController = null;
-        }
-    },
-
-    syncScroll() {
-        const textarea = document.getElementById('input-text');
-        const highlighter = document.getElementById('highlighter-layer');
-        if (!textarea || !highlighter) return;
-        requestAnimationFrame(() => {
-            highlighter.scrollTop = textarea.scrollTop;
-        });
-    },
-
-    async runAnalysis() {
-        const textarea = document.getElementById('input-text');
-        if (!textarea) return;
-
-        const text = textarea.value;
-        if (!text || text.length < 20) {
-            window.error("Forensic stability requires at least 20 characters.");
-            return;
+        // Load High-Fidelity Visualizer
+        if (res.visual_data) {
+          this.visualData = res.visual_data;
+          await PDFVisualizer.init(file, res.visual_data);
+          if (visualTab) visualTab.classList.remove("hidden");
         }
 
-        const btn = document.getElementById('analyze-btn');
-        const cancelBtn = document.getElementById('cancel-btn');
-        const overlay = document.getElementById('loading-overlay');
-        const clearBtn = document.getElementById('clear-btn');
+        window.success("PDF Visual Audit Ready.");
+      }
+    } catch (err) {
+      if (err.name === "AbortError") {
+        console.log("Extraction cancelled.");
+      } else {
+        console.error(err);
+        window.error("Error extracting PDF metadata.");
+      }
+    } finally {
+      if (overlay) {
+        overlay.classList.add("hidden");
+        overlay.classList.remove("flex");
+      }
+      if (cancelBtn) cancelBtn.classList.add("hidden");
+      if (clearBtn) clearBtn.classList.remove("hidden");
+      this.abortController = null;
+    }
+  },
 
-        btn.disabled = true;
-        if (cancelBtn) cancelBtn.classList.remove('hidden');
-        if (clearBtn) clearBtn.classList.add('hidden');
-        if (overlay) {
-            overlay.classList.remove('hidden');
-            overlay.classList.add('flex');
-        }
+  syncScroll() {
+    const textarea = document.getElementById("input-text");
+    const highlighter = document.getElementById("highlighter-layer");
+    if (!textarea || !highlighter) return;
+    requestAnimationFrame(() => {
+      highlighter.scrollTop = textarea.scrollTop;
+    });
+  },
 
-        this.abortController = new AbortController();
+  async runAnalysis() {
+    const textarea = document.getElementById("input-text");
+    if (!textarea) return;
 
-        try {
-            const res = await fetch('/api/v1/detect', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text }),
-                signal: this.abortController.signal
-            }).then(r => r.json());
+    const text = textarea.value;
+    if (!text || text.length < 20) {
+      window.error("Forensic stability requires at least 20 characters.");
+      return;
+    }
 
-            this.updateUI(res);
-            this.applyForensicHighlighting(res.sentences);
-            this.lastResult = res;
-            const reportBtn = document.getElementById('report-btn');
-            if (reportBtn) reportBtn.classList.remove('hidden');
-            this.renderHistory();
+    const btn = document.getElementById("analyze-btn");
+    const cancelBtn = document.getElementById("cancel-btn");
+    const overlay = document.getElementById("loading-overlay");
+    const clearBtn = document.getElementById("clear-btn");
 
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                console.log("Analysis cancelled.");
-            } else {
-                console.error(err);
-                window.error("Neural Core Timeout.");
-            }
-        } finally {
-            btn.disabled = false;
-            if (cancelBtn) cancelBtn.classList.add('hidden');
-            if (clearBtn) clearBtn.classList.remove('hidden');
-            if (overlay) {
-                overlay.classList.add('hidden');
-                overlay.classList.remove('flex');
-            }
-            this.abortController = null;
-        }
-    },
+    btn.disabled = true;
+    if (cancelBtn) cancelBtn.classList.remove("hidden");
+    if (clearBtn) clearBtn.classList.add("hidden");
+    if (overlay) {
+      overlay.classList.remove("hidden");
+      overlay.classList.add("flex");
+    }
 
-    cancelAnalysis() {
-        if (this.abortController) {
-            this.abortController.abort();
-        }
-    },
+    this.abortController = new AbortController();
 
-    downloadReport() {
-        if (!this.lastResult) { window.error("Run an analysis first."); return; }
-        const r = this.lastResult;
-        const bd = r.breakdown || {};
-        const ref = Math.random().toString(36).substr(2, 8).toUpperCase();
-        const ts  = new Date().toLocaleString();
+    try {
+      const res = await fetch("/api/v1/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+        signal: this.abortController.signal,
+      }).then((r) => r.json());
 
-        const bar = (pct, color) => `
+      this.updateUI(res);
+      this.applyForensicHighlighting(res.sentences);
+      this.lastResult = res;
+      const reportBtn = document.getElementById("report-btn");
+      if (reportBtn) reportBtn.classList.remove("hidden");
+      this.renderHistory();
+    } catch (err) {
+      if (err.name === "AbortError") {
+        console.log("Analysis cancelled.");
+      } else {
+        console.error(err);
+        window.error("Neural Core Timeout.");
+      }
+    } finally {
+      btn.disabled = false;
+      if (cancelBtn) cancelBtn.classList.add("hidden");
+      if (clearBtn) clearBtn.classList.remove("hidden");
+      if (overlay) {
+        overlay.classList.add("hidden");
+        overlay.classList.remove("flex");
+      }
+      this.abortController = null;
+    }
+  },
+
+  cancelAnalysis() {
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+  },
+
+  downloadReport() {
+    if (!this.lastResult) {
+      window.error("Run an analysis first.");
+      return;
+    }
+    const r = this.lastResult;
+    const bd = r.breakdown || {};
+    const ref = Math.random().toString(36).substr(2, 8).toUpperCase();
+    const ts = new Date().toLocaleString();
+
+    const bar = (pct, color) => `
             <div style="background:#f8fafc;border-radius:99px;overflow:hidden;height:10px;width:100%;margin-top:6px;">
                 <div style="height:100%;width:${pct}%;background:${color};border-radius:99px;"></div>
             </div>`;
 
-        const html = `<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8">
 <title>Neural Lab — Forensic Audit Certificate ${ref}</title>
@@ -336,9 +336,9 @@ const ForensicEngine = {
     <p class="verdict">${r.classification}</p>
     <div style="margin-top:16px;">
       <div class="row" style="margin-bottom:4px;"><span style="font-size:10px;color:#64748b;">Human</span><span style="font-weight:900;">${Math.round(r.human_probability)}%</span></div>
-      ${bar(r.human_probability, '#10b981')}
+      ${bar(r.human_probability, "#10b981")}
       <div class="row" style="margin-bottom:4px;margin-top:10px;"><span style="font-size:10px;color:#64748b;">Neural (AI)</span><span style="font-weight:900;">${Math.round(r.ai_probability)}%</span></div>
-      ${bar(r.ai_probability, '#ef4444')}
+      ${bar(r.ai_probability, "#ef4444")}
     </div>
   </div>
 
@@ -366,14 +366,14 @@ const ForensicEngine = {
   <h2>Forensic Metrics</h2>
   <div class="row" style="gap:24px;">
     <div style="flex:1;">
-      <div class="metric-row"><span>Word Count</span><span style="font-weight:700;">${r.metrics?.word_count ?? '--'}</span></div>
-      <div class="metric-row"><span>Perplexity</span><span style="font-weight:700;">${(r.perplexity||0).toFixed(1)}</span></div>
-      <div class="metric-row"><span>Burstiness</span><span style="font-weight:700;">${(r.burstiness||0).toFixed(2)}</span></div>
+      <div class="metric-row"><span>Word Count</span><span style="font-weight:700;">${r.metrics?.word_count ?? "--"}</span></div>
+      <div class="metric-row"><span>Perplexity</span><span style="font-weight:700;">${(r.perplexity || 0).toFixed(1)}</span></div>
+      <div class="metric-row"><span>Burstiness</span><span style="font-weight:700;">${(r.burstiness || 0).toFixed(2)}</span></div>
     </div>
     <div style="flex:1;">
-      <div class="metric-row"><span>Entropy</span><span style="font-weight:700;">${r.metrics?.entropy ?? '--'}</span></div>
-      <div class="metric-row"><span>Lexical Stability</span><span style="font-weight:700;">${r.metrics?.stability ?? '--'}%</span></div>
-      <div class="metric-row"><span>Audit Confidence</span><span style="font-weight:700;">${r.performance?.confidence ?? '--'}%</span></div>
+      <div class="metric-row"><span>Entropy</span><span style="font-weight:700;">${r.metrics?.entropy ?? "--"}</span></div>
+      <div class="metric-row"><span>Lexical Stability</span><span style="font-weight:700;">${r.metrics?.stability ?? "--"}%</span></div>
+      <div class="metric-row"><span>Audit Confidence</span><span style="font-weight:700;">${r.performance?.confidence ?? "--"}%</span></div>
     </div>
   </div>
 </div>
@@ -390,156 +390,217 @@ const ForensicEngine = {
 <script>window.onload = () => setTimeout(() => { window.print(); }, 400);<\/script>
 </body></html>`;
 
-        const win = window.open('', '_blank');
-        if (!win) { window.error("Allow pop-ups to download the report."); return; }
-        win.document.write(html);
-        win.document.close();
-    },
+    const win = window.open("", "_blank");
+    if (!win) {
+      window.error("Allow pop-ups to download the report.");
+      return;
+    }
+    win.document.write(html);
+    win.document.close();
+  },
 
-    applyForensicHighlighting(sentences) {
-        const highlighter = document.getElementById('highlighter-layer');
-        let html = "";
-        sentences.forEach(s => {
-            if (s.ai_probability > 60) {
-                html += `<span class="highlight-ai-high" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
-            } else if (s.ai_probability > 25) {
-                html += `<span class="highlight-ai-med" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
-            } else {
-                // Human — plain text, no highlight
-                html += s.text;
-            }
-        });
-        highlighter.innerHTML = html;
-    },
+  applyForensicHighlighting(sentences) {
+    const highlighter = document.getElementById("highlighter-layer");
+    let html = "";
+    sentences.forEach((s) => {
+      if (s.ai_probability > 60) {
+        html += `<span class="highlight-ai-high" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
+      } else if (s.ai_probability > 25) {
+        html += `<span class="highlight-ai-med" title="Neural Signal: ${s.ai_probability}%">${s.text}</span>`;
+      } else {
+        // Human — plain text, no highlight
+        html += s.text;
+      }
+    });
+    highlighter.innerHTML = html;
+  },
 
-    updateUI(res) {
-        document.getElementById('ai-prob').innerText = Math.round(res.ai_probability || 0) + '%';
-        document.getElementById('human-prob').innerText = Math.round(res.human_probability || 0) + '%';
-        document.getElementById('ai-bar').style.width = res.ai_probability + '%';
-        document.getElementById('human-bar').style.width = res.human_probability + '%';
-        
-        this.updateRadarChart(res.radar);
-        this.updateConsensus(res.breakdown);
+  updateUI(res) {
+    document.getElementById("ai-prob").innerText =
+      Math.round(res.ai_probability || 0) + "%";
+    document.getElementById("human-prob").innerText =
+      Math.round(res.human_probability || 0) + "%";
+    document.getElementById("ai-bar").style.width = res.ai_probability + "%";
+    document.getElementById("human-bar").style.width =
+      res.human_probability + "%";
 
-        // Update Integrity Audit (Plagiarism)
-        if (res.plagiarism) {
-            const pIndex = document.getElementById('plag-index');
-            const pTrace = document.getElementById('plag-trace');
-            const pBar   = document.getElementById('plag-bar');
-            const pArchive = document.getElementById('integrity-archive-index');
-            const topArchive = document.getElementById('top-archive-count');
-            const histArchive = document.getElementById('history-archive-count');
-            
-            if (pIndex) pIndex.innerText = Math.round(res.plagiarism.index || 0) + '%';
-            if (pTrace) pTrace.innerText = (res.plagiarism.trace_count || 0);
-            if (pArchive) pArchive.innerText = (res.plagiarism.total_archives || 0);
-            if (topArchive) topArchive.innerText = (res.plagiarism.total_archives || 0);
-            if (histArchive) histArchive.innerText = (res.plagiarism.total_archives || 0);
-            if (pBar)   pBar.style.width = (res.plagiarism.index || 0) + '%';
+    this.updateRadarChart(res.radar);
+    this.updateConsensus(res.breakdown);
 
-            // Handle Top Match deep-linking
-            const pSource = document.getElementById('plag-match-source');
-            const pLink   = document.getElementById('plag-match-link');
-            if (res.plagiarism.top_match_id) {
-                if (pSource) pSource.classList.remove('hidden');
-                if (pLink) {
-                    pLink.href = `/view/${res.plagiarism.top_match_id}`;
-                    pLink.innerText = `Forensic Record: ${res.plagiarism.top_match_id.substring(0, 8)}`;
-                }
-            } else {
-                if (pSource) pSource.classList.add('hidden');
-            }
-        }
+    // Update Integrity Audit (Plagiarism)
+    if (res.plagiarism) {
+      const pIndex = document.getElementById("plag-index");
+      const pTrace = document.getElementById("plag-trace");
+      const pBar = document.getElementById("plag-bar");
+      const pArchive = document.getElementById("integrity-archive-index");
+      const topArchive = document.getElementById("top-archive-count");
+      const histArchive = document.getElementById("history-archive-count");
 
-        // Update Matrix
-        const map = { 'f1-val': 'f1', 'precision-val': 'precision', 'recall-val': 'recall', 'conf-val': 'confidence' };
-        Object.entries(map).forEach(([id, key]) => {
-            const el = document.getElementById(id);
-            if (el) {
-                const val = (res.performance && res.performance[key] !== undefined) ? res.performance[key] : null;
-                el.innerText = val !== null ? (typeof val === 'number' ? val.toFixed(2) : val) + '%' : '--';
-            }
-        });
+      if (pIndex)
+        pIndex.innerText = Math.round(res.plagiarism.index || 0) + "%";
+      if (pTrace) pTrace.innerText = res.plagiarism.trace_count || 0;
+      if (pArchive) pArchive.innerText = res.plagiarism.total_archives || 0;
+      if (topArchive) topArchive.innerText = res.plagiarism.total_archives || 0;
+      if (histArchive)
+        histArchive.innerText = res.plagiarism.total_archives || 0;
+      if (pBar) pBar.style.width = (res.plagiarism.index || 0) + "%";
 
-        const classification = document.getElementById('classification');
-        const summaryCard = document.getElementById('summary-card');
-        const verdictDesc = document.getElementById('verdict-desc');
-        
-        classification.innerText = res.classification;
-        
-        // Dynamic Styling
-        if (res.ai_probability > 68) {
-            summaryCard.className = 'card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-red-50/50 border border-red-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden';
-            classification.className = 'text-[10px] lg:text-sm font-black text-red-700 uppercase italic';
-        } else if (res.ai_probability > 35) {
-            summaryCard.className = 'card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-amber-50/50 border border-amber-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden';
-            classification.className = 'text-[10px] lg:text-sm font-black text-amber-700 uppercase italic';
+      // Handle Forensic Source deep-linking
+      const pSource = document.getElementById("plag-match-source");
+      if (pSource) {
+        if (res.plagiarism.sources && res.plagiarism.sources.length > 0) {
+          pSource.classList.remove("hidden");
+          // Render list of sources with titles and snippets
+          pSource.innerHTML = `
+                        <div class="mt-4 space-y-3">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Detected Forensic Traces:</p>
+                            ${res.plagiarism.sources
+                              .map(
+                                (src) => `
+                                <div class="p-3 bg-slate-50 border border-slate-100 rounded-lg hover:border-indigo-200 transition-all">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] font-black text-slate-900 truncate uppercase">${src.title}</span>
+                                        <a href="/view/${src.id}" target="_blank" class="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-700">View Record</a>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 italic truncate">"${src.snippet}"</p>
+                                </div>
+                            `,
+                              )
+                              .join("")}
+                        </div>
+                    `;
         } else {
-            summaryCard.className = 'card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-emerald-50/50 border border-emerald-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden';
-            classification.className = 'text-[10px] lg:text-sm font-black text-emerald-700 uppercase italic';
+          pSource.classList.add("hidden");
         }
-    },
+      }
+    }
 
-    updateConsensus(breakdown) {
-        if (!breakdown) return;
-        const C = 188.5; // circumference for r=30
-        const rings = [
-            { ringId: 'ring-ai-exact', valId: 'ring-ai-exact-val', pct: breakdown.ai_exact ?? 0 },
-            { ringId: 'ring-ai-minor', valId: 'ring-ai-minor-val', pct: breakdown.ai_minor ?? 0 },
-            { ringId: 'ring-human',    valId: 'ring-human-val',    pct: breakdown.human    ?? 0 },
-        ];
-        rings.forEach(r => {
-            const ring = document.getElementById(r.ringId);
-            const val  = document.getElementById(r.valId);
-            if (ring) ring.style.strokeDashoffset = (C * (1 - r.pct / 100)).toFixed(2);
-            if (val)  val.textContent = Math.round(r.pct) + '%';
-        });
-    },
+    // Update Matrix
+    const map = {
+      "f1-val": "f1",
+      "precision-val": "precision",
+      "recall-val": "recall",
+      "conf-val": "confidence",
+    };
+    Object.entries(map).forEach(([id, key]) => {
+      const el = document.getElementById(id);
+      if (el) {
+        const val =
+          res.performance && res.performance[key] !== undefined
+            ? res.performance[key]
+            : null;
+        el.innerText =
+          val !== null
+            ? (typeof val === "number" ? val.toFixed(2) : val) + "%"
+            : "--";
+      }
+    });
 
-    updateRadarChart(data) {
-        const poly = document.getElementById('radar-poly');
-        if (!poly) return;
+    const classification = document.getElementById("classification");
+    const summaryCard = document.getElementById("summary-card");
+    const verdictDesc = document.getElementById("verdict-desc");
 
-        const cx = 50, cy = 50, maxR = 36;
-        // 5 metrics mapped to 5 axes at 72° intervals, starting from top (-90°)
-        const metrics = [
-            Math.min(100, Math.max(0, data.lexical_diversity   ?? 0)),
-            Math.min(100, Math.max(0, data.neural_stability    ?? 0)),
-            Math.min(100, Math.max(0, data.predictability      ?? 0)),
-            Math.min(100, Math.max(0, data.rhythm_variance     ?? 0)),
-            Math.min(100, Math.max(0, data.syntax_complexity   ?? 0)),
-        ];
+    classification.innerText = res.classification;
 
-        const points = metrics.map((val, i) => {
-            const angle = -Math.PI / 2 + (2 * Math.PI * i / 5);
-            const r = (val / 100) * maxR;
-            return {
-                x: (cx + r * Math.cos(angle)).toFixed(2),
-                y: (cy + r * Math.sin(angle)).toFixed(2)
-            };
-        });
+    // Dynamic Styling
+    if (res.ai_probability > 68) {
+      summaryCard.className =
+        "card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-red-50/50 border border-red-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden";
+      classification.className =
+        "text-[10px] lg:text-sm font-black text-red-700 uppercase italic";
+    } else if (res.ai_probability > 35) {
+      summaryCard.className =
+        "card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-amber-50/50 border border-amber-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden";
+      classification.className =
+        "text-[10px] lg:text-sm font-black text-amber-700 uppercase italic";
+    } else {
+      summaryCard.className =
+        "card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-emerald-50/50 border border-emerald-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-hidden";
+      classification.className =
+        "text-[10px] lg:text-sm font-black text-emerald-700 uppercase italic";
+    }
+  },
 
-        poly.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
-    },
+  updateConsensus(breakdown) {
+    if (!breakdown) return;
+    const C = 188.5; // circumference for r=30
+    const rings = [
+      {
+        ringId: "ring-ai-exact",
+        valId: "ring-ai-exact-val",
+        pct: breakdown.ai_exact ?? 0,
+      },
+      {
+        ringId: "ring-ai-minor",
+        valId: "ring-ai-minor-val",
+        pct: breakdown.ai_minor ?? 0,
+      },
+      {
+        ringId: "ring-human",
+        valId: "ring-human-val",
+        pct: breakdown.human ?? 0,
+      },
+    ];
+    rings.forEach((r) => {
+      const ring = document.getElementById(r.ringId);
+      const val = document.getElementById(r.valId);
+      if (ring)
+        ring.style.strokeDashoffset = (C * (1 - r.pct / 100)).toFixed(2);
+      if (val) val.textContent = Math.round(r.pct) + "%";
+    });
+  },
 
-    saveToHistory(text, res) {
-        // Function deprecated: Saving is now server-side and automatic.
-    },
+  updateRadarChart(data) {
+    const poly = document.getElementById("radar-poly");
+    if (!poly) return;
 
-    async renderHistory() {
-        const list = document.getElementById('history-list');
-        if (!list) return;
+    const cx = 50,
+      cy = 50,
+      maxR = 36;
+    // 5 metrics mapped to 5 axes at 72° intervals, starting from top (-90°)
+    const metrics = [
+      Math.min(100, Math.max(0, data.lexical_diversity ?? 0)),
+      Math.min(100, Math.max(0, data.neural_stability ?? 0)),
+      Math.min(100, Math.max(0, data.predictability ?? 0)),
+      Math.min(100, Math.max(0, data.rhythm_variance ?? 0)),
+      Math.min(100, Math.max(0, data.syntax_complexity ?? 0)),
+    ];
 
-        try {
-            const data = await fetch('/api/v1/history').then(r => r.json());
-            this.history = data;
+    const points = metrics.map((val, i) => {
+      const angle = -Math.PI / 2 + (2 * Math.PI * i) / 5;
+      const r = (val / 100) * maxR;
+      return {
+        x: (cx + r * Math.cos(angle)).toFixed(2),
+        y: (cy + r * Math.sin(angle)).toFixed(2),
+      };
+    });
 
-            list.innerHTML = this.history.length === 0 ? '<p class="text-[10px] text-slate-400 italic text-center py-10">Archive Empty.</p>' : this.history.map(item => `
+    poly.setAttribute("points", points.map((p) => `${p.x},${p.y}`).join(" "));
+  },
+
+  saveToHistory(text, res) {
+    // Function deprecated: Saving is now server-side and automatic.
+  },
+
+  async renderHistory() {
+    const list = document.getElementById("history-list");
+    if (!list) return;
+
+    try {
+      const data = await fetch("/api/v1/history").then((r) => r.json());
+      this.history = data;
+
+      list.innerHTML =
+        this.history.length === 0
+          ? '<p class="text-[10px] text-slate-400 italic text-center py-10">Archive Empty.</p>'
+          : this.history
+              .map(
+                (item) => `
                 <div class="group flex items-center justify-between p-5 bg-white border border-slate-100 rounded-xl hover:border-slate-300 transition-all shadow-sm relative overflow-hidden">
                     <div class="flex-1 min-w-0 pr-4">
                         <div class="flex items-center space-x-2 mb-2">
                             <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">${item.date}</span>
-                            <span class="text-[9px] font-black ${item.ai_probability > 50 ? 'text-red-500' : 'text-emerald-500'} uppercase tracking-tight px-1.5 py-0.5 bg-slate-50 rounded">${item.classification}</span>
+                            <span class="text-[9px] font-black ${item.ai_probability > 50 ? "text-red-500" : "text-emerald-500"} uppercase tracking-tight px-1.5 py-0.5 bg-slate-50 rounded">${item.classification}</span>
                         </div>
                         <p class="text-[11px] text-slate-500 truncate font-medium mb-4 italic leading-relaxed">"${item.snippet}"</p>
                         <button onclick="ForensicEngine.loadFromHistory('${item.id}')" class="text-[9px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-0.5 hover:text-slate-400 hover:border-slate-400 transition-all">
@@ -562,117 +623,85 @@ const ForensicEngine = {
                         </button>
                     </div>
                 </div>
-            `).join('');
-        } catch (err) {
-            list.innerHTML = '<p class="text-[10px] text-red-400 italic text-center py-10">Persistence severed.</p>';
-        }
-    },
-
-    loadFromHistory(id) {
-        const item = this.history.find(h => h.id === id);
-        if (item) {
-            document.getElementById('input-text').value = item.full_text;
-            
-            // Reconstruct the response object for UI update
-            const res = {
-                ai_probability: parseFloat(item.ai_probability),
-                human_probability: 100 - parseFloat(item.ai_probability),
-                perplexity: item.perplexity,
-                burstiness: item.burstiness,
-                classification: item.classification,
-                performance: typeof item.metrics === 'string' ? JSON.parse(item.metrics) : item.metrics,
-                radar: typeof item.radar === 'string' ? JSON.parse(item.radar) : item.radar,
-                consensus: [], 
-                sentences: [] 
-            };
-            
-            this.updateUI(res);
-            this.switchView('editor');
-            
-            // Trigger a fresh analysis if sentence highlights are missing
-            // (Industrial Choice: Don't store 1000s of sentence results in DB, recalculate on load)
-        }
-    },
-
-    async deleteAudit(id) {
-        const confirmed = await ConfirmModal.ask(
-            "Purge Fragment?",
-            "This individual forensic audit will be permanently removed from the research database."
-        );
-
-        if (confirmed) {
-            try {
-                const res = await fetch(`/api/v1/history/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    this.renderHistory();
-                    window.success("Fragment Purged.");
-                } else {
-                    throw new Error("Deletion failed.");
-                }
-            } catch (err) {
-                window.error("Persistence error.");
-            }
-        }
-    },
-
-    switchView(view) {
-        const editor = document.getElementById('view-editor');
-        const history = document.getElementById('view-history');
-        const visual = document.getElementById('view-visual-pdf');
-        
-        const tabEditor = document.getElementById('tab-editor');
-        const tabVisual = document.getElementById('tab-visual-pdf');
-
-        const navEditor = document.getElementById('nav-editor');
-        const navHistory = document.getElementById('nav-history');
-
-        // 1. Reset Content Views
-        [editor, history, visual].forEach(v => v?.classList.add('hidden'));
-
-        // 2. Nuclear Reset Footer Tabs (Baseline Inactive)
-        if (tabEditor) tabEditor.className = "text-[10px] font-black text-slate-400 uppercase tracking-widest border-b-2 border-transparent pb-1";
-        if (tabVisual) {
-            const isHidden = tabVisual.classList.contains('hidden');
-            tabVisual.className = `text-[10px] font-black text-slate-400 uppercase tracking-widest border-b-2 border-transparent pb-1 ${isHidden ? 'hidden' : ''}`;
-        }
-
-        // 3. Nuclear Reset Sidebar Navigation (Baseline Inactive)
-        const sidebarBaseClass = "group w-full flex items-center p-2 text-slate-400 hover:text-slate-900 rounded-md text-[10px] font-bold uppercase tracking-widest text-left transition-colors";
-        if (navEditor) navEditor.className = sidebarBaseClass;
-        if (navHistory) navHistory.className = sidebarBaseClass;
-
-        // 4. Apply Active States
-        if (view === 'editor') {
-            if (editor) editor.classList.remove('hidden');
-            if (tabEditor) tabEditor.className = "text-[10px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-1";
-            if (navEditor) navEditor.className = "group w-full flex items-center p-2 bg-slate-50 rounded-md text-slate-900 text-[10px] font-bold uppercase tracking-widest text-left";
-        } else if (view === 'history') {
-            if (history) history.classList.remove('hidden');
-            if (navHistory) navHistory.className = "group w-full flex items-center p-2 bg-slate-50 rounded-md text-slate-900 text-[10px] font-bold uppercase tracking-widest text-left";
-            this.renderHistory();
-        } else if (view === 'visual-pdf') {
-            if (visual) visual.classList.remove('hidden');
-            if (tabVisual) tabVisual.className = "text-[10px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 pb-1";
-        }
-    },
-
-    async clearHistory() {
-        const confirmed = await ConfirmModal.ask(
-            "Purge Research Archive?",
-            "All saved forensic audits in your laboratory profile will be permanently deleted. This cannot be undone."
-        );
-
-        if (confirmed) {
-            try {
-                await fetch('/api/v1/history/purge', { method: 'POST' });
-                this.history = [];
-                this.renderHistory();
-                window.success("Archive Purged.");
-            } catch (err) {
-                window.error("Purge failed.");
-            }
-        }
+            `,
+              )
+              .join("");
+    } catch (err) {
+      list.innerHTML =
+        '<p class="text-[10px] text-red-400 italic text-center py-10">Persistence severed.</p>';
     }
+  },
+
+  loadFromHistory(id) {
+    const item = this.history.find((h) => h.id === id);
+    if (item) {
+      document.getElementById("input-text").value = item.full_text;
+
+      // Reconstruct the response object for UI update
+      const res = {
+        ai_probability: parseFloat(item.ai_probability),
+        human_probability: 100 - parseFloat(item.ai_probability),
+        perplexity: item.perplexity,
+        burstiness: item.burstiness,
+        classification: item.classification,
+        performance:
+          typeof item.metrics === "string"
+            ? JSON.parse(item.metrics)
+            : item.metrics,
+        radar:
+          typeof item.radar === "string" ? JSON.parse(item.radar) : item.radar,
+        consensus: [],
+        sentences: [],
+      };
+
+      this.updateUI(res);
+      if (window.switchView) window.switchView("editor");
+
+      // Trigger a fresh analysis if sentence highlights are missing
+      // (Industrial Choice: Don't store 1000s of sentence results in DB, recalculate on load)
+    }
+  },
+
+  async deleteAudit(id) {
+    const confirmed = await ConfirmModal.ask(
+      "Purge Fragment?",
+      "This individual forensic audit will be permanently removed from the research database.",
+    );
+
+    if (confirmed) {
+      try {
+        const res = await fetch(`/api/v1/history/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          this.renderHistory();
+          window.success("Fragment Purged.");
+        } else {
+          throw new Error("Deletion failed.");
+        }
+      } catch (err) {
+        window.error("Persistence error.");
+      }
+    }
+  },
+
+
+
+  async clearHistory() {
+    const confirmed = await ConfirmModal.ask(
+      "Purge Research Archive?",
+      "All saved forensic audits in your laboratory profile will be permanently deleted. This cannot be undone.",
+    );
+
+    if (confirmed) {
+      try {
+        await fetch("/api/v1/history/purge", { method: "POST" });
+        this.history = [];
+        this.renderHistory();
+        window.success("Archive Purged.");
+      } catch (err) {
+        window.error("Purge failed.");
+      }
+    }
+  },
 };
 
 window.runAnalysis = () => ForensicEngine.runAnalysis();
@@ -680,4 +709,4 @@ window.cancelAnalysis = () => ForensicEngine.cancelAnalysis();
 window.clearHistory = () => ForensicEngine.clearHistory();
 window.ForensicEngine = ForensicEngine;
 
-document.addEventListener('DOMContentLoaded', () => ForensicEngine.init());
+document.addEventListener("DOMContentLoaded", () => ForensicEngine.init());

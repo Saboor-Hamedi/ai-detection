@@ -47,13 +47,13 @@ class PersistenceService:
                 }
             )
 
-            # 3. Store Text Content (Fragmented for high-fidelity retrieval)
-            # We store the first 5000 chars as the primary searchable content in fragments
+            # 3. Store Text Content (Normalized for high-fidelity retrieval)
+            clean_text = " ".join(text_content.split()) # Collapse all whitespace/newlines
             db.execute(
                 text("INSERT INTO audit_fragments (audit_id, content_text, ai_score) VALUES (:a_id, :txt, :score)"),
                 {
                     "a_id": audit_id, 
-                    "txt": text_content, 
+                    "txt": clean_text, 
                     "score": result['ai_probability']
                 }
             )
@@ -151,6 +151,7 @@ class PersistenceService:
             # Ensure we're querying with a clean UUID string
             clean_id = audit_id.strip()
             
+            # Retrieve record metadata
             query = text("""
                 SELECT 
                     d.filename, 

@@ -57,6 +57,22 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
     
     # 1. Integrity Audit (Plagiarism)
     plag_result = plagiarism_brain.check_integrity(db, research_text)
+    
+    # Forensic Enrichment: Convert IDs into human-readable titles and snippets
+    if plag_result.get("matches"):
+        match_ids = plag_result["matches"][:10]
+        enrichment_query = text("""
+            SELECT DISTINCT ON (a.id) a.id, d.filename, f.content_text 
+            FROM audits a 
+            JOIN documents d ON a.document_id = d.id 
+            JOIN audit_fragments f ON a.id = f.audit_id
+            WHERE a.id = ANY(:ids)
+        """)
+        matches_metadata = db.execute(enrichment_query, {"ids": list(match_ids)}).fetchall()
+        plag_result["sources"] = [
+            {"id": str(r.id), "title": r.filename, "snippet": r.content_text[:110] + "..."}
+            for r in matches_metadata
+        ]
 
     # 2. NEURAL TURBO-SAMPLING: 
     # For massive documents (80k+), we audit paragraphs to avoid 1000s of model calls.

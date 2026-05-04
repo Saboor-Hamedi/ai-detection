@@ -93,6 +93,11 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
         "USER_EMAIL": user.email
     })
 
+@app.get("/archive", response_class=HTMLResponse)
+async def archive_page(request: Request, db: Session = Depends(get_db)):
+    """Clean URL gateway for the Forensic History view."""
+    return await root(request, db)
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get("access_token")
