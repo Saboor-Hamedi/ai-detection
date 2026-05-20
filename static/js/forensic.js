@@ -31,9 +31,8 @@ const ForensicEngine = {
     textarea.addEventListener("input", (e) => {
       this.updateTelemetry(e.target.value);
 
-      if (!highlighter.innerHTML.includes("<span")) {
-        highlighter.innerText = e.target.value;
-      }
+      // Reset highlights on input change to maintain sync and clear stale styling
+      highlighter.innerText = e.target.value;
       this.syncScroll();
       this.checkPlaceholder();
     });
@@ -146,7 +145,7 @@ const ForensicEngine = {
   async uploadFile(file) {
     const overlay = document.getElementById("loading-overlay");
     const textarea = document.getElementById("input-text");
-    const visualTab = document.getElementById("tab-visual-pdf");
+    const visualTab = document.getElementById("tab-pdf");
     const clearBtn = document.getElementById("clear-btn");
     const cancelBtn = document.getElementById("cancel-btn");
 
@@ -178,6 +177,9 @@ const ForensicEngine = {
         if (res.visual_data) {
           this.visualData = res.visual_data;
           await PDFVisualizer.init(file, res.visual_data);
+          // Hide empty state once PDF is rendered
+          const emptyState = document.getElementById('pdf-empty-state');
+          if (emptyState) emptyState.classList.add('hidden');
           if (visualTab) visualTab.classList.remove("hidden");
         }
 
@@ -457,10 +459,10 @@ const ForensicEngine = {
                             ${res.plagiarism.sources
                               .map(
                                 (src) => `
-                                <div class="p-3 bg-slate-50 border border-slate-100 rounded-lg hover:border-indigo-200 transition-all">
+                                <div onclick="SourceModal.open('${src.id}', '${src.title}')" class="p-3 bg-slate-50 border border-slate-100 rounded-lg hover:border-indigo-200 transition-all cursor-pointer group">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] font-black text-slate-900 truncate uppercase">${src.title}</span>
-                                        <a href="/view/${src.id}" target="_blank" class="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:text-indigo-700">View Record</a>
+                                        <span class="text-[10px] font-black text-slate-900 truncate uppercase group-hover:text-indigo-600 transition-colors">${src.title}</span>
+                                        <span class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Compare</span>
                                     </div>
                                     <p class="text-[10px] text-slate-500 italic truncate">"${src.snippet}"</p>
                                 </div>
@@ -519,6 +521,15 @@ const ForensicEngine = {
       classification.className =
         "text-[10px] lg:text-sm font-black text-emerald-700 uppercase italic";
     }
+
+    // Dynamic update of new biometrics components
+    const coherencyVal = res.coherency || (res.performance && res.performance.coherency) || [];
+    const rhythmVal = res.rhythm_profile || (res.performance && res.performance.rhythm_profile) || [];
+    const saturationVal = res.radar ? res.radar.lexical_diversity : null;
+
+    this.updateCoherencyChart(coherencyVal);
+    this.updateRhythmChart(rhythmVal);
+    this.updateLexicalSaturation(saturationVal);
   },
 
   updateConsensus(breakdown) {
@@ -638,27 +649,25 @@ const ForensicEngine = {
       document.getElementById("input-text").value = item.full_text;
 
       // Reconstruct the response object for UI update
+      const metrics = typeof item.metrics === "string" ? JSON.parse(item.metrics) : item.metrics;
       const res = {
         ai_probability: parseFloat(item.ai_probability),
         human_probability: 100 - parseFloat(item.ai_probability),
         perplexity: item.perplexity,
         burstiness: item.burstiness,
         classification: item.classification,
-        performance:
-          typeof item.metrics === "string"
-            ? JSON.parse(item.metrics)
-            : item.metrics,
+        performance: metrics,
         radar:
           typeof item.radar === "string" ? JSON.parse(item.radar) : item.radar,
         consensus: [],
-        sentences: [],
+        sentences: metrics && metrics.sentences ? metrics.sentences : [],
+        coherency: metrics && metrics.coherency ? metrics.coherency : [],
+        rhythm_profile: metrics && metrics.rhythm_profile ? metrics.rhythm_profile : [],
       };
 
       this.updateUI(res);
+      this.applyForensicHighlighting(res.sentences);
       if (window.switchView) window.switchView("editor");
-
-      // Trigger a fresh analysis if sentence highlights are missing
-      // (Industrial Choice: Don't store 1000s of sentence results in DB, recalculate on load)
     }
   },
 
@@ -700,6 +709,199 @@ const ForensicEngine = {
       } catch (err) {
         window.error("Purge failed.");
       }
+    }
+  },
+
+  updateCoherencyChart(coherency) {
+    const chart = document.getElementById("coherency-chart");
+    const empty = document.getElementById("coherency-empty");
+    const valText = document.getElementById("coherency-score-val");
+    const statusText = document.getElementById("coherency-status");
+    const nodes = document.getElementById("coherency-nodes");
+    if (!chart) return;
+
+    if (!coherency || coherency.length === 0) {
+      if (empty) empty.classList.remove("hidden");
+      if (valText) valText.innerText = "--%";
+      if (statusText) statusText.innerText = "--";
+      if (nodes) nodes.innerHTML = "";
+      return;
+    }
+
+    if (empty) empty.classList.add("hidden");
+
+    // Compute average coherency
+    const avg = coherency.reduce((a, b) => a + b, 0) / coherency.length;
+    if (valText) valText.innerText = Math.round(avg) + "%";
+
+    let verdict = "Erratic";
+    let verdictColor = "text-red-500";
+    if (avg > 75) {
+      verdict = "Flowing";
+      verdictColor = "text-emerald-500";
+    } else if (avg > 50) {
+      verdict = "Standard";
+      verdictColor = "text-amber-500";
+    }
+    if (statusText) {
+      statusText.innerText = verdict;
+      statusText.className = `text-[8px] lg:text-[10px] font-bold ${verdictColor} uppercase tracking-wider`;
+    }
+
+    // Generate Path points for 200 x 60 viewport
+    const width = 200;
+    const height = 60;
+    const paddingX = 10;
+    const paddingY = 10;
+    const plotWidth = width - paddingX * 2;
+    const plotHeight = height - paddingY * 2;
+
+    const pointsCount = coherency.length;
+    const stepX = pointsCount > 1 ? plotWidth / (pointsCount - 1) : plotWidth;
+
+    let pathD = "";
+    let areaD = "";
+    let nodesHTML = "";
+
+    coherency.forEach((val, i) => {
+      const x = paddingX + i * stepX;
+      const y = paddingY + plotHeight * (1 - val / 100);
+      
+      if (i === 0) {
+        pathD = `M ${x} ${y}`;
+        areaD = `M ${x} ${height} L ${x} ${y}`;
+      } else {
+        pathD += ` L ${x} ${y}`;
+        areaD += ` L ${x} ${y}`;
+      }
+
+      if (i === pointsCount - 1) {
+        areaD += ` L ${x} ${height} Z`;
+      }
+
+      nodesHTML += `<circle cx="${x}" cy="${y}" r="2" fill="#6366f1" class="hover:r-3 transition-all cursor-help"><title>Sentence ${i+1}: ${val}% Coherence</title></circle>`;
+    });
+
+    const areaPath = document.getElementById("coherency-path-area");
+    const linePath = document.getElementById("coherency-path-line");
+    if (areaPath) areaPath.setAttribute("d", areaD);
+    if (linePath) linePath.setAttribute("d", pathD);
+    if (nodes) nodes.innerHTML = nodesHTML;
+  },
+
+  updateRhythmChart(rhythmProfile) {
+    const barsContainer = document.getElementById("rhythm-bars");
+    const empty = document.getElementById("rhythm-empty");
+    const valText = document.getElementById("rhythm-variance-val");
+    const countText = document.getElementById("rhythm-count-val");
+    if (!barsContainer) return;
+
+    if (!rhythmProfile || rhythmProfile.length === 0) {
+      if (empty) empty.classList.remove("hidden");
+      if (valText) valText.innerText = "--";
+      if (countText) countText.innerText = "--";
+      barsContainer.innerHTML = "";
+      return;
+    }
+
+    if (empty) empty.classList.add("hidden");
+
+    // Compute variance (standard deviation)
+    const count = rhythmProfile.length;
+    const mean = rhythmProfile.reduce((a, b) => a + b, 0) / count;
+    const variance = rhythmProfile.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / count;
+    const stdDev = Math.sqrt(variance);
+
+    if (valText) valText.innerText = stdDev.toFixed(2);
+    if (countText) countText.innerText = count + " Sentences";
+
+    // Generate vertical bars inside 200 x 60 viewport
+    const width = 200;
+    const height = 60;
+    const paddingX = 5;
+    const maxVal = Math.max(...rhythmProfile, 1);
+    
+    const plotHeight = height - 10;
+    const barSpacing = 2;
+    const totalSpacing = barSpacing * (count - 1);
+    const plotWidth = width - paddingX * 2;
+    const barWidth = Math.max(1, (plotWidth - totalSpacing) / count);
+
+    let barsHTML = "";
+    rhythmProfile.forEach((val, i) => {
+      const x = paddingX + i * (barWidth + barSpacing);
+      const h = (val / maxVal) * plotHeight;
+      const y = height - h;
+      
+      barsHTML += `<rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="1" fill="#4f46e5" opacity="0.8" class="hover:opacity-100 transition-all cursor-help"><title>Sentence ${i+1}: ${val} words</title></rect>`;
+    });
+
+    barsContainer.innerHTML = barsHTML;
+  },
+
+  updateLexicalSaturation(uniqueRatio) {
+    const empty = document.getElementById("saturation-empty");
+    const content = document.getElementById("saturation-content");
+    const valText = document.getElementById("saturation-ratio-val");
+    const verdictText = document.getElementById("saturation-verdict");
+    const uniqueBar = document.getElementById("saturation-unique-bar");
+    const repeatBar = document.getElementById("saturation-repeat-bar");
+    const uniquePct = document.getElementById("saturation-unique-pct");
+    const repeatPct = document.getElementById("saturation-repeat-pct");
+
+    if (uniqueRatio === null || uniqueRatio === undefined) {
+      if (empty) { empty.classList.remove("hidden"); empty.style.display = ""; }
+      if (content) content.classList.add("hidden");
+      if (valText) valText.innerText = "--%";
+      if (verdictText) verdictText.innerText = "--";
+      return;
+    }
+
+    // Show content, hide empty state
+    if (empty) empty.style.display = "none";
+    if (content) content.classList.remove("hidden");
+
+    const uniquePct_val = Math.round(uniqueRatio);
+    const repeatPct_val = 100 - uniquePct_val;
+
+    if (valText) valText.innerText = uniquePct_val + "%";
+
+    // Animate bars
+    if (uniqueBar) uniqueBar.style.width = uniquePct_val + "%";
+    if (repeatBar) repeatBar.style.width = repeatPct_val + "%";
+
+    // Show percentage labels only if bar is wide enough
+    if (uniquePct) {
+      uniquePct.innerText = uniquePct_val + "%";
+      uniquePct.classList.toggle("hidden", uniquePct_val < 15);
+    }
+    if (repeatPct) {
+      repeatPct.innerText = repeatPct_val + "%";
+      repeatPct.classList.toggle("hidden", repeatPct_val < 15);
+    }
+
+    let verdict = "Repetitive";
+    let verdictColor = "text-red-500";
+    let uniqueColor = "bg-red-400";
+    if (uniqueRatio > 65) {
+      verdict = "Diverse";
+      verdictColor = "text-emerald-500";
+      uniqueColor = "bg-emerald-400";
+    } else if (uniqueRatio > 45) {
+      verdict = "Normal";
+      verdictColor = "text-amber-500";
+      uniqueColor = "bg-amber-400";
+    }
+
+    // Update bar color dynamically
+    if (uniqueBar) uniqueBar.className = `h-full ${uniqueColor} rounded-l-full transition-all duration-1000 flex items-center justify-center`;
+
+    if (verdictText) {
+      verdictText.innerText = verdict;
+      verdictText.className = `text-[8px] lg:text-[10px] font-bold ${verdictColor} uppercase tracking-wider`;
+    }
+    if (valText) {
+      valText.className = `text-[10px] lg:text-sm font-black ${verdictColor}`;
     }
   },
 };

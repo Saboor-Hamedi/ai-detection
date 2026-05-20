@@ -4,8 +4,9 @@ from sqlalchemy import text
 
 class PlagiarismBrain:
     """
-    Industrial Plagiarism Brain V1: Detects content overlap within the localized research archive.
-    Designed for high-speed integrity auditing without external dependencies.
+    Industrial Plagiarism Brain V2: High-performance integrity engine.
+    Uses a single batched SQL query instead of N individual round-trips.
+    Scales efficiently to large documents (78k+ chars).
     """
     def __init__(self):
         print("[PLAGIARISM] Initializing Integrity Engine...")
@@ -13,68 +14,88 @@ class PlagiarismBrain:
     def check_integrity(self, db: Session, target_text: str):
         """
         Scans the internal forensic archive for matching text segments.
-        Uses normalized fuzzy sampling to catch identical content with formatting variations.
+        V2: Single batched query — O(1) DB round-trips instead of O(N).
         """
         try:
             # 1. Archive Metadata
             total_archives = db.execute(text("SELECT COUNT(*) FROM audit_fragments")).scalar() or 0
             print(f"[PLAGIARISM] Forensic scan initiated. Archive size: {total_archives}")
 
-            # Normalize the target text (Collapse whitespace for robust matching)
+            # Normalize the target text
             clean_target = re.sub(r'\s+', ' ', target_text).strip()
 
             if not clean_target or len(clean_target) < 40:
                 return {"index": 0.0, "trace_count": 0, "total_archives": total_archives}
 
-            # 2. Forensic Multi-Sampling (Dynamic Density)
+            if total_archives == 0:
+                return {"index": 0.0, "trace_count": 0, "total_archives": 0, "matches": []}
+
+            # 2. Smart Sampling — Hard cap at 40 fingerprints regardless of doc size
+            # This keeps DB load constant even for 100k+ char documents
             text_len = len(clean_target)
+            window_size = 55  # Slightly larger window = more precise matches
+            MAX_FINGERPRINTS = 40
+            MIN_FINGERPRINTS = 12
+
+            # Calculate how many fingerprints to take
+            sample_count = max(MIN_FINGERPRINTS, min(MAX_FINGERPRINTS, text_len // 500))
+            step = max(window_size, text_len // sample_count)
+
             fingerprints = []
-            
-            # Scalability: 1 sample per 150 chars (Maintains consistent forensic depth)
-            # Minimum 15 samples for short-form integrity
-            sample_count = max(15, text_len // 150)
-            window_size = 40 
-            
-            # Calculate stride to distribute fingerprints evenly
-            step = max(20, text_len // sample_count)
             for i in range(0, text_len - window_size + 1, step):
-                fingerprints.append(clean_target[i : i + window_size])
+                fp = clean_target[i: i + window_size].strip()
+                if len(fp) >= 20:
+                    fingerprints.append(fp)
 
-            match_hits = 0
-            found_audits = set()
+            if not fingerprints:
+                return {"index": 0.0, "trace_count": 0, "total_archives": total_archives, "matches": []}
 
-            # 3. Normalized Archive Probing
-            for fp in fingerprints:
-                if len(fp.strip()) < 15: continue
-                
-                # SQL Pattern: Search for the fingerprint
-                # We use ILIKE and escape wildcards
-                
-                # We normalize the content_text in the query to ignore newlines
-                # (PostgreSQL handles this efficiently via Trigram GIST index)
-                # Word-Similarity (Forensic Sub-string matching)
-                query = text("""
-                    SELECT audit_id FROM audit_fragments 
-                    WHERE :fragment <<% content_text 
-                    LIMIT 1
+            print(f"[PLAGIARISM] Scanning {len(fingerprints)} fingerprints (doc: {text_len} chars)")
+
+            # 3. SINGLE BATCHED QUERY
+            # Instead of N queries, we pass all fingerprints as an array and
+            # use PostgreSQL's ANY() to check all at once.
+            # This reduces DB round-trips from N to 1.
+            batch_query = text("""
+                SELECT DISTINCT audit_id
+                FROM audit_fragments
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM unnest(:fingerprints) AS fp
+                    WHERE content_text ILIKE '%' || fp || '%'
+                )
+            """)
+
+            results = db.execute(batch_query, {"fingerprints": fingerprints}).fetchall()
+            found_audits = {row[0] for row in results}
+
+            # 4. Scoring: check each fingerprint against the archive content (in-memory)
+            # We already have matched audit IDs; now compute the hit ratio
+            # by checking how many fingerprints appear in any known archive
+            if found_audits:
+                # Fetch the archive texts for found audits (1 query)
+                archive_query = text("""
+                    SELECT content_text FROM audit_fragments 
+                    WHERE audit_id = ANY(:ids)
+                    LIMIT 10
                 """)
+                archive_rows = db.execute(archive_query, {"ids": list(found_audits)}).fetchall()
+                archive_texts = " ".join(r[0] for r in archive_rows if r[0]).lower()
 
-                result = db.execute(query, {"fragment": fp}).fetchone()
-                
-                if result:
-                    match_hits += 1
-                    if match_hits == 1:
-                        print(f"[PLAGIARISM] Match detected! Top ID: {result[0]}")
-                    found_audits.add(result[0])
+                match_hits = sum(
+                    1 for fp in fingerprints
+                    if fp.lower() in archive_texts
+                )
+            else:
+                match_hits = 0
 
-            # 4. Scoring
             plagiarism_index = (match_hits / len(fingerprints)) * 100 if fingerprints else 0
-            
+
             return {
                 "index": round(min(100.0, plagiarism_index), 2),
                 "trace_count": len(found_audits),
                 "total_archives": total_archives,
-                "matches": list(found_audits) # Return all forensic traces
+                "matches": list(found_audits)
             }
 
         except Exception as e:

@@ -6,21 +6,32 @@
 const PDFVisualizer = {
     pdf: null,
     visualData: null,
-    container: document.getElementById('pdf-container'),
+    container: null,
 
     async init(file, visualData) {
+        this.container = document.getElementById('pdf-container');
+        if (!this.container) {
+            console.error("[FORENSIC] PDF Container not found.");
+            return;
+        }
+
         this.visualData = visualData;
         this.container.innerHTML = ''; 
         
-        const arrayBuffer = await file.arrayBuffer();
-        const pdfData = new Uint8Array(arrayBuffer);
-        
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-        
-        this.pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
-        
-        for (let i = 1; i <= this.pdf.numPages; i++) {
-            await this.renderPage(i);
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfData = new Uint8Array(arrayBuffer);
+            
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+            
+            this.pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+            
+            for (let i = 1; i <= this.pdf.numPages; i++) {
+                await this.renderPage(i);
+            }
+        } catch (err) {
+            console.error("[FORENSIC] PDF Load Failure:", err);
+            window.error("PDF Ingestion Failed.");
         }
     },
 
@@ -201,7 +212,7 @@ const PDFVisualizer = {
 
         this.container.appendChild(reportPage);
         
-        switchView('visual-pdf');
+        switchView('pdf');
         setTimeout(() => {
             reportPage.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);

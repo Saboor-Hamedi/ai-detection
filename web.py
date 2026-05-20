@@ -98,6 +98,11 @@ async def archive_page(request: Request, db: Session = Depends(get_db)):
     """Clean URL gateway for the Forensic History view."""
     return await root(request, db)
 
+@app.get("/pdf", response_class=HTMLResponse)
+async def pdf_page(request: Request, db: Session = Depends(get_db)):
+    """Clean URL gateway for the Visual PDF Forensic view."""
+    return await root(request, db)
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get("access_token")
@@ -111,6 +116,9 @@ async def root(request: Request, db: Session = Depends(get_db)):
     results_content = get_component("results").replace(
         'id="top-archive-count">0', 
         f'id="top-archive-count">{archive_count}'
+    ).replace(
+        "{{BIOMETRICS}}",
+        get_component("biometrics")
     )
     sidebar_content = get_component("sidebar").replace(
         'id="sidebar-archive-count">0',

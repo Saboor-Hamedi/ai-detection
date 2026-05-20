@@ -2,6 +2,7 @@ import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import json
+import re
 
 class PersistenceService:
     """
@@ -9,11 +10,38 @@ class PersistenceService:
     Ensures that research data is permanent, searchable, and secure.
     """
     @staticmethod
+    def strip_markdown(text_content: str):
+        """
+        Industrial Markdown Stripper: Purges formatting symbols to isolate pure linguistic content.
+        """
+        if not text_content: return ""
+        
+        # 1. Remove Code Blocks
+        text_content = re.sub(r'```[\s\S]*?```', '', text_content)
+        # 2. Remove Inline Code
+        text_content = re.sub(r'`(.*?)`', r'\1', text_content)
+        # 3. Remove Headers (#)
+        text_content = re.sub(r'#+\s+', '', text_content)
+        # 4. Remove Bold/Italic (*, _)
+        text_content = re.sub(r'[*_]{1,3}', '', text_content)
+        # 5. Remove Links [text](url) -> text
+        text_content = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text_content)
+        # 6. Remove Blockquotes (>)
+        text_content = re.sub(r'^>\s+', '', text_content, flags=re.MULTILINE)
+        
+        return text_content
+
+    @staticmethod
     def save_audit(db: Session, user_id: str, text_content: str, result: dict):
         """
-        Archives a forensic session.
+        Archives a forensic session with mandatory text sanitization.
         """
         try:
+            # Mandate Forensic Sanitization
+            clean_text_raw = PersistenceService.strip_markdown(text_content)
+            # Collapse inline spaces but PRESERVE paragraph breaks (\n\n)
+            clean_text = "\n\n".join([" ".join(p.split()) for p in clean_text_raw.split('\n\n')])
+            
             # 1. Register Document Metadata
             doc_id = str(uuid.uuid4())
             db.execute(
@@ -48,7 +76,6 @@ class PersistenceService:
             )
 
             # 3. Store Text Content (Normalized for high-fidelity retrieval)
-            clean_text = " ".join(text_content.split()) # Collapse all whitespace/newlines
             db.execute(
                 text("INSERT INTO audit_fragments (audit_id, content_text, ai_score) VALUES (:a_id, :txt, :score)"),
                 {

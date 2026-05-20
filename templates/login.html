@@ -49,6 +49,7 @@
 
 <script>
     let isRegisterMode = false;
+    let isSubmitting = false;
 
     window.onload = () => {
         const savedEmail = localStorage.getItem('lab_remembered_email');
@@ -56,19 +57,10 @@
             document.getElementById('auth-email').value = savedEmail;
             document.getElementById('auth-remember').checked = true;
         }
-
-        const inputs = ['reg-name', 'auth-email', 'auth-password'];
-        inputs.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') submitAuth();
-                });
-            }
-        });
     };
 
     function toggleAuthMode() {
+        if (isSubmitting) return;
         isRegisterMode = !isRegisterMode;
         const subtitle = document.getElementById('auth-subtitle');
         const regFields = document.getElementById('register-fields');
@@ -89,6 +81,8 @@
     }
 
     async function submitAuth() {
+        if (isSubmitting) return;
+
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
         const name = document.getElementById('reg-name').value;
@@ -97,7 +91,14 @@
         const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
         const body = isRegisterMode ? { email, password, full_name: name } : { email, password, remember };
 
+        const submitBtn = document.getElementById('auth-submit-btn');
+        const originalText = submitBtn.textContent;
+
         try {
+            isSubmitting = true;
+            submitBtn.disabled = true;
+            submitBtn.textContent = isRegisterMode ? "Initializing..." : "Authorizing...";
+
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -124,6 +125,10 @@
             }
         } catch (e) {
             window.error("Laboratory link severed.");
+        } finally {
+            isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
         }
     }
 </script>

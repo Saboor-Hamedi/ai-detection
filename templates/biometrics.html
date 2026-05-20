@@ -1,0 +1,128 @@
+<!-- Linguistic Coherency Flow -->
+<div class="card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[260px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-visible">
+    <div class="flex items-center space-x-1.5 mb-4 lg:mb-3">
+        <p class="text-[8px] lg:text-[10px] font-bold text-slate-300 lg:text-slate-400 uppercase tracking-[0.2em]">Coherency Flow</p>
+        <div class="group relative flex items-center cursor-help">
+            <svg class="w-3 h-3 text-slate-300 hover:text-slate-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2.5 bg-slate-900 text-slate-100 text-[9px] font-bold tracking-wide leading-relaxed rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all z-[9999]">
+                <span class="text-white">Flow stability:</span> Sentence-to-sentence transition perplexity consistency. High variance indicates human pacing.
+            </div>
+        </div>
+    </div>
+    <div class="relative w-full h-[60px] mb-2 flex items-center justify-center">
+        <!-- SVG Area Chart -->
+        <svg id="coherency-chart" viewBox="0 0 200 60" preserveAspectRatio="none" class="w-full h-full">
+            <defs>
+                <linearGradient id="coherency-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <!-- Background grids -->
+            <line x1="0" y1="15" x2="200" y2="15" stroke="#f8fafc" stroke-width="0.5" />
+            <line x1="0" y1="30" x2="200" y2="30" stroke="#f8fafc" stroke-width="0.5" />
+            <line x1="0" y1="45" x2="200" y2="45" stroke="#f8fafc" stroke-width="0.5" />
+            <!-- Dynamic paths -->
+            <path id="coherency-path-area" d="" fill="url(#coherency-grad)" class="transition-all duration-1000" />
+            <path id="coherency-path-line" d="" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" class="transition-all duration-1000" />
+            <!-- Interactive circles group -->
+            <g id="coherency-nodes"></g>
+        </svg>
+        <div id="coherency-empty" class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-slate-300 uppercase tracking-widest bg-white/90">Awaiting Ingestion</div>
+    </div>
+    <div class="flex justify-between items-center mt-2">
+        <div>
+            <p id="coherency-score-val" class="text-[10px] lg:text-sm font-black text-indigo-600">--%</p>
+            <p class="text-[6px] lg:text-[7px] font-bold text-slate-400 uppercase">Transition Score</p>
+        </div>
+        <div class="text-right">
+            <p id="coherency-status" class="text-[8px] lg:text-[10px] font-bold text-slate-500 uppercase tracking-wider">--</p>
+            <p class="text-[6px] lg:text-[7px] font-bold text-slate-400 uppercase">Flow Verdict</p>
+        </div>
+    </div>
+</div>
+
+<!-- Linguistic Rhythm Profile -->
+<div class="card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[260px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-visible">
+    <div class="flex items-center space-x-1.5 mb-4 lg:mb-3">
+        <p class="text-[8px] lg:text-[10px] font-bold text-slate-300 lg:text-slate-400 uppercase tracking-[0.2em]">Rhythm Profile</p>
+        <div class="group relative flex items-center cursor-help">
+            <svg class="w-3 h-3 text-slate-300 hover:text-slate-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2.5 bg-slate-900 text-slate-100 text-[9px] font-bold tracking-wide leading-relaxed rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all z-[9999]">
+                <span class="text-white">Rhythm profile:</span> Sentence length distribution chart. High length variance is typical of human rhythm (burstiness).
+            </div>
+        </div>
+    </div>
+    <div class="relative w-full h-[60px] mb-2 flex items-center justify-center">
+        <!-- SVG Rhythm Bar Chart -->
+        <svg id="rhythm-chart" viewBox="0 0 200 60" preserveAspectRatio="none" class="w-full h-full">
+            <g id="rhythm-bars" class="transition-all duration-1000"></g>
+        </svg>
+        <div id="rhythm-empty" class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-slate-300 uppercase tracking-widest bg-white/90">Awaiting Ingestion</div>
+    </div>
+    <div class="flex justify-between items-center mt-2">
+        <div>
+            <p id="rhythm-variance-val" class="text-[10px] lg:text-sm font-black text-slate-900">--</p>
+            <p class="text-[6px] lg:text-[7px] font-bold text-slate-400 uppercase">Length Volatility</p>
+        </div>
+        <div class="text-right">
+            <p id="rhythm-count-val" class="text-[8px] lg:text-[10px] font-black text-slate-600">--</p>
+            <p class="text-[6px] lg:text-[7px] font-bold text-slate-400 uppercase">Total Sentences</p>
+        </div>
+    </div>
+</div>
+
+<!-- Lexical Saturation -->
+<div class="card rounded-none lg:rounded-2xl p-12 lg:p-5 bg-white border-r lg:border border-slate-100 flex-shrink-0 w-[240px] lg:w-full h-full lg:h-auto flex flex-col justify-center overflow-visible">
+    <div class="flex items-center space-x-1.5 mb-4 lg:mb-3">
+        <p class="text-[8px] lg:text-[10px] font-bold text-slate-300 lg:text-slate-400 uppercase tracking-[0.2em]">Lexical Saturation</p>
+        <div class="group relative flex items-center cursor-help">
+            <svg class="w-3 h-3 text-slate-300 hover:text-slate-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2.5 bg-slate-900 text-slate-100 text-[9px] font-bold tracking-wide leading-relaxed rounded-lg shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all z-[9999]">
+                <span class="text-white">Vocabulary split:</span> How much of the text uses unique words vs. repeated words. AI tends to reuse the same vocabulary frequently.
+            </div>
+        </div>
+    </div>
+
+    <!-- Split vocabulary bar -->
+    <div id="saturation-empty" class="flex items-center justify-center h-[52px] text-[9px] font-black text-slate-300 uppercase tracking-widest">Awaiting Ingestion</div>
+    <div id="saturation-content" class="hidden">
+        <!-- Labels row -->
+        <div class="flex justify-between items-center mb-1.5">
+            <div class="flex items-center space-x-1">
+                <div class="w-2 h-2 rounded-sm bg-emerald-400 flex-shrink-0"></div>
+                <p class="text-[7px] font-bold text-slate-500">Unique</p>
+            </div>
+            <div class="flex items-center space-x-1">
+                <p class="text-[7px] font-bold text-slate-400">Repeated</p>
+                <div class="w-2 h-2 rounded-sm bg-slate-200 flex-shrink-0"></div>
+            </div>
+        </div>
+        <!-- Bar track -->
+        <div class="w-full h-5 rounded-full overflow-hidden bg-slate-100 flex">
+            <div id="saturation-unique-bar" class="h-full bg-emerald-400 rounded-l-full transition-all duration-1000 flex items-center justify-center" style="width: 0%">
+                <span id="saturation-unique-pct" class="text-[8px] font-black text-white leading-none px-1 hidden"></span>
+            </div>
+            <div id="saturation-repeat-bar" class="h-full bg-slate-200 rounded-r-full transition-all duration-1000 flex items-center justify-center" style="width: 100%">
+                <span id="saturation-repeat-pct" class="text-[8px] font-black text-slate-400 leading-none px-1 hidden"></span>
+            </div>
+        </div>
+        <!-- Bottom stats -->
+        <div class="flex justify-between items-center mt-2">
+            <div>
+                <p id="saturation-ratio-val" class="text-[10px] lg:text-sm font-black text-emerald-600">--%</p>
+                <p class="text-[6px] lg:text-[7px] font-bold text-slate-400 uppercase">Unique words</p>
+            </div>
+            <div class="text-right">
+                <p id="saturation-verdict" class="text-[8px] lg:text-[10px] font-bold text-emerald-600 uppercase tracking-wider">--</p>
+                <p class="text-[6px] lg:text-[7px] font-bold text-slate-400 uppercase">Diversity</p>
+            </div>
+        </div>
+    </div>
+</div>

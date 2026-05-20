@@ -52,8 +52,11 @@ async def upload_pdf(file: UploadFile = File(...), _=Depends(verify_session)):
 @router.post("/detect")
 async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), token: str = Depends(verify_session)):
     user_id = auth_service.validate_token(token)
-    research_text = request.text
-    if not research_text: raise HTTPException(status_code=400, detail="Empty text")
+    research_text_raw = request.text
+    if not research_text_raw: raise HTTPException(status_code=400, detail="Empty text")
+    
+    # Mandate Forensic Sanitization (Strip Markdown Noise)
+    research_text = persistence_service.strip_markdown(research_text_raw)
     
     # 1. Integrity Audit (Plagiarism)
     plag_result = plagiarism_brain.check_integrity(db, research_text)
@@ -76,13 +79,14 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
 
     # 2. NEURAL TURBO-SAMPLING: 
     # For massive documents (80k+), we audit paragraphs to avoid 1000s of model calls.
-    is_massive = len(research_text) > 30000
+    # We split using the raw text to preserve character-level alignments and markdown symbols.
+    is_massive = len(research_text_raw) > 30000
     if is_massive:
         # Split by double-newlines (paragraphs)
-        raw_fragments = re.split(r'(\n\n+)', research_text)
+        raw_fragments = re.split(r'(\n\n+)', research_text_raw)
     else:
         # Standard sentence/line splitting
-        raw_fragments = re.split(r'(\n+|[.!?]\s+)', research_text)
+        raw_fragments = re.split(r'(\n+|[.!?]\s+)', research_text_raw)
     
     sentences_data = []
     all_ppls = []
@@ -114,7 +118,14 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
         # Deep neural analysis cap based on intensity settings
         skip_n = char_cursor > neural_cap
         
-        prob, ppl, ent, uniq, mark = engine.audit_fragment(frag, skip_neural=skip_n)
+        # Clean the fragment text specifically for model execution to avoid noisy evaluations on markdown syntax.
+        clean_frag = persistence_service.strip_markdown(frag).strip()
+        if not clean_frag:
+            # Empty fragment after stripping (e.g. pure markdown symbols)
+            sentences_data.append(SentenceResult(text=frag, ai_probability=0, perplexity=100))
+            continue
+            
+        prob, ppl, ent, uniq, mark = engine.audit_fragment(clean_frag, skip_neural=skip_n)
         sentences_data.append(SentenceResult(text=frag, ai_probability=prob, perplexity=ppl))
         all_ppls.append(ppl)
 
@@ -123,27 +134,85 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
     global_ppl, global_entropy = engine.calculate_metrics(research_text[:8000])
     
     burstiness = engine.get_burstiness(all_ppls)
+    has_errors = engine.detect_human_errors(research_text[:2000])
     words = re.findall(r'\w+', research_text.lower())
     global_unique = len(set(words)) / len(words) if words else 0.5
     
-    # Global score derived from sentence-level probabilities for consistency with highlights
+    # DEBUG: Print raw forensic values so we can calibrate correctly
+    print(f"[FORENSIC DEBUG] global_ppl={global_ppl:.2f} | entropy={global_entropy:.4f} | burstiness={burstiness:.2f} | has_errors={has_errors} | unique={global_unique:.3f}")
+    for s in sentences_data[:5]:
+        print(f"  [SENTENCE] prob={s.ai_probability:.1f}% | ppl={s.perplexity:.1f} | text={s.text[:60]}")
+    
+    # --- GLOBAL SCORE: Clean weighted average of sentence scores ---
+    # Use character-weighted average so longer sentences have proportional weight.
+    # Re-score globally using the real document burstiness (not the fake 10.0).
+    
     scored_sentences = [s for s in sentences_data if s.ai_probability > 0]
     if scored_sentences:
-        # Weight by sentence length so longer sentences count more
         total_chars = sum(len(s.text) for s in scored_sentences)
-        global_ai_prob = sum(
+        char_weighted_avg = sum(
             s.ai_probability * (len(s.text) / total_chars)
             for s in scored_sentences
         ) if total_chars > 0 else 0.0
+
+        # Re-run the global score using the actual full-document metrics
+        # This is the most reliable score since it sees the complete text
+        global_score_from_full = engine.get_ai_score(
+            ppl=global_ppl,
+            entropy=global_entropy,
+            burstiness=burstiness,
+            unique_ratio=global_unique,
+            markers=0,
+            has_errors=engine.detect_human_errors(research_text[:2000]),
+            is_short=False
+        )
+
+        # Blend: 60% from full-document scan, 40% from sentence-level avg
+        global_ai_prob = (global_score_from_full * 0.6) + (char_weighted_avg * 0.4)
+
+        # Safety Limiter
+        global_ai_prob = max(0.1, min(99.9, global_ai_prob))
     else:
         global_ai_prob = 0.0
 
-    global_ai_prob = round(global_ai_prob, 2)
+    global_ai_prob = round(global_ai_prob, 1)
 
     classification = "Human"
     if global_ai_prob > 68: classification = "Neural (AI)"
     elif global_ai_prob > 35: classification = "Hybrid / Edited"
     
+    # Clean sentences for database storage (matching database's clean_text structure)
+    clean_sentences = []
+    for s in sentences_data:
+        clean_frag_raw = persistence_service.strip_markdown(s.text)
+        clean_frag = "\n\n".join([" ".join(p.split()) for p in clean_frag_raw.split('\n\n')])
+        clean_sentences.append({
+            "text": clean_frag,
+            "ai_probability": s.ai_probability,
+            "perplexity": s.perplexity
+        })
+
+    # Linguistic Rhythm Profile (sentence lengths in words)
+    rhythm_profile = []
+    for s in sentences_data:
+        clean_frag_raw = persistence_service.strip_markdown(s.text).strip()
+        words = re.findall(r'\w+', clean_frag_raw)
+        if words:
+            rhythm_profile.append(len(words))
+            
+    # Linguistic Coherency (stability of perplexity shifts between sentences)
+    import math
+    coherency = []
+    valid_ppls = [s.perplexity for s in sentences_data if s.perplexity > 0]
+    for i in range(1, len(valid_ppls)):
+        p1 = max(1.0, valid_ppls[i - 1])
+        p2 = max(1.0, valid_ppls[i])
+        log_diff = abs(math.log(p2) - math.log(p1))
+        score = round(max(0.0, 100.0 - (log_diff * 40.0)), 1)
+        coherency.append(score)
+    if not coherency:
+        coherency = [100.0]
+
     # Final result assembly
     final_result = {
         "ai_probability": global_ai_prob,
@@ -152,7 +221,16 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
         "perplexity": global_ppl,
         "burstiness": round(burstiness, 2),
         "classification": classification,
-        "metrics": {"word_count": len(research_text.split()), "entropy": round(global_entropy, 2), "stability": round(100 - (global_unique*100), 1)},
+        "coherency": coherency,
+        "rhythm_profile": rhythm_profile,
+        "metrics": {
+            "word_count": len(research_text.split()), 
+            "entropy": round(global_entropy, 2), 
+            "stability": round(100 - (global_unique*100), 1),
+            "sentences": clean_sentences,
+            "coherency": coherency,
+            "rhythm_profile": rhythm_profile
+        },
         "performance": {"f1": 95.8, "precision": 95.2, "recall": 96.1, "confidence": round(100 - (global_ppl/10), 1)},
         "sentences": sentences_data,
         "radar": {
@@ -190,7 +268,7 @@ async def detect_ai(request: DetectionRequest, db: Session = Depends(get_db), to
 
     # AUTOMATIC ARCHIVING (Conditional)
     if should_archive:
-        persistence_service.save_audit(db, user_id, research_text, final_result)
+        persistence_service.save_audit(db, user_id, research_text_raw, final_result)
     
     return final_result
 
@@ -207,6 +285,22 @@ async def purge_forensic_history(db: Session = Depends(get_db), token: str = Dep
     if not success:
         raise HTTPException(status_code=500, detail="Purge failure")
     return {"status": "success"}
+
+@router.get("/audit/{audit_id}")
+async def get_audit_detail(audit_id: str, db: Session = Depends(get_db), token: str = Depends(verify_session)):
+    """High-fidelity forensic retrieval for comparison modals."""
+    audit = persistence_service.get_audit(db, audit_id)
+    if not audit:
+        raise HTTPException(status_code=404, detail="Forensic record not found in archive")
+    
+    return {
+        "id": audit_id,
+        "filename": audit.filename,
+        "full_text": audit.content_text,
+        "created_at": audit.created_at.strftime("%Y-%m-%d %H:%M"),
+        "ai_probability": audit.ai_probability,
+        "classification": audit.classification_verdict
+    }
 
 @router.delete("/history/{audit_id}")
 async def delete_individual_audit(audit_id: str, db: Session = Depends(get_db), token: str = Depends(verify_session)):
